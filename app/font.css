@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:ital,wght@0,100..700;1,100..700&family=Lexend:wght@100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&family=Outfit:wght@100..900&family=Prompt:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Varela+Round&display=swap');
+
+
+@font-face {
+    font-family: "custom";
+    src: url("./title.ttf");
+}
+
+:root {
+
+    --font1: "Outfit", sans-serif;
+    --font2: "Prompt", sans-serif;
+    --font3: "Lexend", sans-serif;
+    --font4: "Nunito", sans-serif;
+    --font5: "Josefin Sans", sans-serif;
+    --font6: "Varela Round", sans-serif;
+
+}
+
+h1,
+h2,
+h3,
+h4,
+h4,
+h5,
+h6,
+div {
+    font-family: var(--font1);
+}
+
+a,
+p,
+span {
+    font-family: var(--font5);
+}
+
+button {
+    font-family: var(--font3);
+}
+
+.gradient-title {
+    font-family: "custom";
+}
