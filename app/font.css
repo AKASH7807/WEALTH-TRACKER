@@ -39,5 +39,5 @@ button {
 }
 
 .gradient-title {
-    font-family: "custom";
+    font-family: "custom" !important;
 }
