@@ -4,6 +4,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* custom font  */
+@font-face {
+  font-family: "custom";
+  src: url("./title.ttf");
+}
+
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -131,6 +138,9 @@
   }
 }
 
+.gradient-title{
+  font-family: "custom" !important;
+}
 
 .hero-image-wrapper {
   perspective: 1000px;
