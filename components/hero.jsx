@@ -43,9 +43,9 @@ const HeroSection = () => {
               Get Started
             </Button>
           </Link>
-          <Link href="https://akash-7807.web.app/" target="_blank">
+          <Link href="https://drive.google.com/file/d/1oJVUkizB56CBx-Y_cGgKnwUkKNp4i8kb/view" target="_blank">
             <Button size="lg" variant="outline" className="px-8">
-              Dev Profile
+              Download App
             </Button>
           </Link>
         </div>
