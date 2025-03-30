@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Finance Tracker  
 
-## Getting Started
+Welcome to the **Finance Tracker** project! This application is designed to help users manage their finances effectively, providing tools for tracking income and expenses, generating reports, and utilizing AI for smarter transaction management.  
 
-First, run the development server:
+## Table of Contents  
+- [Overview](#overview)  
+- [Features](#features)  
+- [Technologies Used](#technologies-used)  
+- [Usage](#usage)  
+- [Live Demo](#live-demo)  
+- [Contributing](#contributing)  
+- [License](#license)  
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Overview  
+**Finance Tracker** is built using Next.js and integrates various technologies to provide a modern and responsive design for financial management. The platform allows users to perform transaction control, view monthly reports, and utilize an AI-powered receipt scanner.  
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Features  
+- **Responsive Design**: Built with Next.js for a seamless user experience across devices.  
+- **Transaction Control**: Track incomes and expenses efficiently.  
+- **Monthly Reports**: Automated reporting functionality with recurring cron jobs.  
+- **Visual Charts**: Comprehensive dashboard with visual representations of financial data.  
+- **AI Integrated Receipt Scanner**: Utilize AI for scanning receipts and autofilling transactions.  
+- **Multi-Account Support**: Users can manage multiple accounts for savings, projects, and businesses.  
+- **Recurring Transactions**: Functionality for recurring transactions with email alerts for income and expenses.  
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Technologies Used  
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+<div style="display: flex; gap: 10px; flex-wrap: wrap;">  
+    <span style="background-color: #f0ad4e; border-radius: 5px; padding: 10px; color: white;">Clerk</span>  
+    <span style="background-color: #38a169; border-radius: 5px; padding: 10px; color: white;">Supabase</span>  
+    <span style="background-color: #007bff; border-radius: 5px; padding: 10px; color: white;">Next.js</span>  
+    <span style="background-color: #6f42c1; border-radius: 5px; padding: 10px; color: white;">Webhook</span>  
+    <span style="background-color: #20c997; border-radius: 5px; padding: 10px; color: white;">Inngest</span>  
+    <span style="background-color: #6610f2; border-radius: 5px; padding: 10px; color: white;">Vercel</span>  
+    <span style="background-color: #24292e; border-radius: 5px; padding: 10px; color: white;">GitHub</span>  
+</div>  
 
-## Learn More
+## Usage  
+Once the development server is running, open your browser and navigate to `http://localhost:3000` to access the Finance Tracker. Sign up or log in to start managing your finances.  
 
-To learn more about Next.js, take a look at the following resources:
+## Live Demo  
+You can try the live version of the Finance Tracker here: [Live Demo](https://wealthtracker.vercel.app/)  
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing  
+Contributions are welcome! If you would like to contribute to this project, please open an issue or submit a pull request.  
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License  
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.  
