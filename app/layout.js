@@ -1,9 +1,9 @@
 import "./globals.css";
-import "./font.css"
+import "./font.css";
+
 import Header from "@/components/header";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
-
 
 export const metadata = {
   title: "wealth",
@@ -12,21 +12,63 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <ClerkProvider>
-        <body>
-          {/* header  */}
+    <ClerkProvider>
+      <html lang="en">
+        <body className="flex min-h-screen flex-col">
+          {/* Header */}
           <Header />
-          <main className="min-h-screen"> {children}</main>
+
+          {/* Main Content */}
+          <main className="flex-1">{children}</main>
+
+          {/* Toast Notifications */}
           <Toaster richColors />
-          {/* footer */}
-          <footer className="bg-blue-50 py-8">
-            <div className="container mx-auto px-4 text-center text-gray-600">
-              <p>©️ <a href="https://akash--dev.web.app/" target="_blank" className="font-extrabold text-blue-600">Akash M</a>. All rights reserved.</p>
+
+          {/* Footer */}
+          <footer className="bg-gradient-to-r from-white via-indigo-50 to-white border-t border-indigo-100">
+            <div className="max-w-7xl mx-auto px-6 py-10">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                {/* Brand */}
+                <div className="text-center md:text-left">
+                  <p className="text-lg font-semibold text-gray-900 tracking-wide">
+                    Wealth ERP
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Smart finance & enterprise management
+                  </p>
+                </div>
+
+                {/* Links */}
+                <div className="flex items-center gap-6 text-sm text-gray-700">
+                  <a
+                    href="/about"
+                    className="hover:text-indigo-600 transition-colors duration-200"
+                  >
+                    About
+                  </a>
+                  <a
+                    href="/feature"
+                    className="hover:text-indigo-600 transition-colors duration-200"
+                  >
+                    Features
+                  </a>
+                  <a
+                    href="#"
+                    className="hover:text-indigo-600 transition-colors duration-200"
+                  >
+                    Support
+                  </a>
+                </div>
+
+                {/* Copyright */}
+                <div className="text-xs text-gray-500 text-center md:text-right">
+                  © {new Date().getFullYear()} Wealth ERP. All rights reserved.
+                </div>
+              </div>
             </div>
           </footer>
         </body>
-      </ClerkProvider>
-    </html>
+      </html>
+    </ClerkProvider>
   );
 }

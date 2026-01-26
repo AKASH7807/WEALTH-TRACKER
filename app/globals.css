@@ -10,6 +10,39 @@
   src: url("./title.ttf");
 }
 
+/* ===== Global Scrollbar ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(55, 65, 81, 0.1);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #6366f1, #8b5cf6);
+  border-radius: 9999px;
+  transition: background 0.3s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #4f46e5, #7c3aed);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #9263f1ca #f3f4f6;
+}
+
+body {
+  -ms-overflow-style: scrollbar;
+}
+
+::-webkit-scrollbar-corner {
+  background: rgba(55, 65, 81, 0.1);
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -130,15 +163,13 @@
   }
 }
 
-
 @layer utilities {
-
-  .gradient-title {
+  .gradient-title-text {
     @apply bg-gradient-to-br from-blue-600 to-purple-600 font-semibold pr-2 pb-2 text-transparent bg-clip-text;
   }
 }
 
-.gradient-title{
+.gradient-title {
   font-family: "custom" !important;
 }
 
@@ -155,8 +186,6 @@
 .hero-image.scrolled {
   transform: rotateX(0) scale(1) translate(0px);
 }
-
-
 
 @keyframes gradientMove {
   0% {

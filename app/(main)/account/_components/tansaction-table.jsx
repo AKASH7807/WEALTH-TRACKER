@@ -51,6 +51,8 @@ import {
   Search,
   Trash,
   X,
+  Download,
+  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
@@ -193,6 +195,132 @@ export function TransactionTable({ transactions }) {
     setCurrentPage(1);
   };
 
+  const handleDownload = () => {
+    try {
+      if (!transactions || transactions.length === 0) {
+        toast.error("No transactions to download");
+        return;
+      }
+
+      const headers = [
+        "Date",
+        "Description",
+        "Category",
+        "Type",
+        "Amount",
+        "Recurring",
+        "Next Recurring Date",
+      ];
+
+      const rows = transactions.map((t) => [
+        format(new Date(t.date), "PPP"),
+        t.description || "",
+        t.category || "",
+        t.type || "",
+        (t.type === "EXPENSE" ? "-" : "") + Number(t.amount).toFixed(2),
+        t.isRecurring ? "Yes" : "No",
+        t.isRecurring && t.nextRecurringDate
+          ? format(new Date(t.nextRecurringDate), "PPP")
+          : "",
+      ]);
+
+      const escapeCsv = (val) => `"${String(val).replace(/"/g, '""')}"`;
+      const csv = [headers, ...rows]
+        .map((r) => r.map(escapeCsv).join(","))
+        .join("\r\n");
+
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const now = new Date();
+      a.download = `transactions_${now.toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast("Download started");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export transactions");
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      if (!transactions || transactions.length === 0) {
+        toast.error("No transactions to export");
+        return;
+      }
+
+      // dynamic import to keep bundle small
+      const { jsPDF } = await import("jspdf");
+      await import("jspdf-autotable");
+
+      const cols = ["Date", "Description", "Category", "Type", "Amount", "Recurring", "Next Recurring Date"];
+      const rows = transactions.map((t) => [
+        format(new Date(t.date), "PPP"),
+        t.description || "",
+        t.category || "",
+        t.type || "",
+        (t.type === "EXPENSE" ? "-" : "") + Number(t.amount).toFixed(2),
+        t.isRecurring ? "Yes" : "No",
+        t.isRecurring && t.nextRecurringDate ? format(new Date(t.nextRecurringDate), "PPP") : "",
+      ]);
+
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      doc.setFontSize(10);
+
+      // autoTable with polished styling: grid theme, subtle header, alternating rows, footer
+      const margin = 40;
+      doc.autoTable({
+        startY: 70,
+        head: [cols],
+        body: rows,
+        theme: "grid",
+        styles: {
+          fontSize: 9,
+          textColor: [34, 34, 34],
+          lineColor: [200, 200, 200],
+          lineWidth: 0.5,
+          cellPadding: 6,
+        },
+        headStyles: {
+          fillColor: [245, 245, 245],
+          textColor: [17, 17, 17],
+          fontStyle: "bold",
+        },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
+        columnStyles: { 4: { halign: "right" } },
+        margin: { left: margin, right: margin },
+        didDrawPage: (data) => {
+          // Header (title)
+          doc.setFontSize(12);
+          doc.setTextColor(17, 17, 17);
+          doc.text("Transactions", margin, 40);
+
+          // Footer (generated time + page number)
+          const pageSize = doc.internal.pageSize;
+          const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+          doc.setFontSize(9);
+          doc.setTextColor(120, 120, 120);
+          const leftFooter = `Generated: ${new Date().toLocaleString()}`;
+          doc.text(leftFooter, margin, pageHeight - 30);
+          const rightFooter = `Page ${data.pageNumber}`;
+          doc.text(rightFooter, pageSize.getWidth() - margin - doc.getTextWidth(rightFooter), pageHeight - 30);
+        },
+      });
+
+      const now = new Date().toISOString().slice(0, 10);
+      doc.save(`transactions_${now}.pdf`);
+      toast("PDF downloaded");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate PDF");
+    }
+  };
+
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
     setSelectedIds([]); // Clear selections on page change
@@ -218,38 +346,69 @@ export function TransactionTable({ transactions }) {
             className="pl-8"
           />
         </div>
-        <div className="flex gap-2">
-          <Select
-            value={typeFilter}
-            onValueChange={(value) => {
-              setTypeFilter(value);
-              setCurrentPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="INCOME">Income</SelectItem>
-              <SelectItem value="EXPENSE">Expense</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col sm:flex-row gap-2 items-start w-full">
+          <div className="w-full sm:w-auto">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  className="w-full sm:w-auto bg-lime-500 hover:bg-lime-600 text-white border-0 flex items-center justify-center"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={handleDownload}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download CSV (Excel)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadPDF}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Download PDF (Print view)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-          <Select
-            value={recurringFilter}
-            onValueChange={(value) => {
-              setRecurringFilter(value);
-              setCurrentPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="All Transactions" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="recurring">Recurring Only</SelectItem>
-              <SelectItem value="non-recurring">Non-recurring Only</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2 w-full">
+            <div className="flex-1">
+              <Select
+                value={typeFilter}
+                onValueChange={(value) => {
+                  setTypeFilter(value);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="INCOME">Income</SelectItem>
+                  <SelectItem value="EXPENSE">Expense</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex-1">
+              <Select
+                value={recurringFilter}
+                onValueChange={(value) => {
+                  setRecurringFilter(value);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Transactions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recurring">Recurring Only</SelectItem>
+                  <SelectItem value="non-recurring">Non-recurring Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           {/* Bulk Actions */}
           {selectedIds.length > 0 && (
@@ -380,8 +539,7 @@ export function TransactionTable({ transactions }) {
                         : "text-green-500"
                     )}
                   >
-                    {transaction.type === "EXPENSE" ? "-" : "+"}$
-                    {transaction.amount.toFixed(2)}
+                    {transaction.type === "EXPENSE" ? "-" : "+"}{`₹${transaction.amount.toFixed(2)}`}
                   </TableCell>
                   <TableCell>
                     {transaction.isRecurring ? (

@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { createTransaction, updateTransaction } from "@/actions/transaction";
 import { transactionSchema } from "@/app/lib/schema";
 import { ReceiptScanner } from "./recipt-scanner";
+import { Upload } from "lucide-react"; // upload icon for optional upload
 
 export function AddTransactionForm({
   accounts,
@@ -128,34 +129,59 @@ export function AddTransactionForm({
     (category) => category.type === type
   );
 
-  //   JSX
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Receipt Scanner - Only show in create mode */}
-      {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} />}
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-8 bg-white p-6 md:p-8 rounded-lg shadow-md"
+    >
+      {/* Receipt Scanner + Upload Button */}
+      {!editMode && (
+        <div className="flex flex-col md:flex-row md:items-center md:gap-4">
+          <div className="flex-1">
+            <ReceiptScanner onScanComplete={handleScanComplete} />
+          </div>
+          <div className="mt-3 md:mt-0 flex justify-center md:justify-start">
+            <label className="flex items-center justify-center w-12 h-12 border border-dashed rounded-md text-indigo-700 cursor-pointer hover:bg-indigo-50 transition">
+              <Upload size={24} />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    toast.success("Image uploaded: " + file.name);
+                  }
+                }}
+              />
+            </label>
+          </div>
+        </div>
+      )}
 
-      {/* Type */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Type</label>
-        <Select
-          onValueChange={(value) => setValue("type", value)}
-          defaultValue={type}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="EXPENSE">Expense</SelectItem>
-            <SelectItem value="INCOME">Income</SelectItem>
-          </SelectContent>
-        </Select>
-        {errors.type && (
-          <p className="text-sm text-red-500">{errors.type.message}</p>
-        )}
-      </div>
+      {/* Two column grid for main fields */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Type */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Type</label>
+          <Select
+            onValueChange={(value) => setValue("type", value)}
+            defaultValue={type}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="EXPENSE">Expense</SelectItem>
+              <SelectItem value="INCOME">Income</SelectItem>
+            </SelectContent>
+          </Select>
+          {errors.type && (
+            <p className="text-sm text-red-500">{errors.type.message}</p>
+          )}
+        </div>
 
-      {/* Amount and Account */}
-      <div className="grid gap-6 md:grid-cols-2">
+        {/* Amount */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Amount</label>
           <Input
@@ -169,6 +195,7 @@ export function AddTransactionForm({
           )}
         </div>
 
+        {/* Account */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Account</label>
           <Select
@@ -179,15 +206,15 @@ export function AddTransactionForm({
               <SelectValue placeholder="Select account" />
             </SelectTrigger>
             <SelectContent>
-              {accounts.map((account) => (
+                {accounts.map((account) => (
                 <SelectItem key={account.id} value={account.id}>
-                  {account.name} (${parseFloat(account.balance).toFixed(2)})
+                  {account.name} ({`₹${parseFloat(account.balance).toFixed(2)}`})
                 </SelectItem>
               ))}
               <CreateAccountDrawer>
                 <Button
                   variant="ghost"
-                  className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                  className="w-full text-sm rounded-md hover:bg-indigo-50"
                 >
                   Create Account
                 </Button>
@@ -198,80 +225,80 @@ export function AddTransactionForm({
             <p className="text-sm text-red-500">{errors.accountId.message}</p>
           )}
         </div>
+
+        {/* Category */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Category</label>
+          <Select
+            onValueChange={(value) => setValue("category", value)}
+            defaultValue={getValues("category")}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {filteredCategories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.category && (
+            <p className="text-sm text-red-500">{errors.category.message}</p>
+          )}
+        </div>
+
+        {/* Date */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Date</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full pl-3 text-left font-normal",
+                  !date && "text-muted-foreground"
+                )}
+              >
+                {date ? format(date, "PPP") : <span>Pick a date</span>}
+                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={(date) => setValue("date", date)}
+                disabled={(date) =>
+                  date > new Date() || date < new Date("1900-01-01")
+                }
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          {errors.date && (
+            <p className="text-sm text-red-500">{errors.date.message}</p>
+          )}
+        </div>
+
+        {/* Description */}
+        <div className="space-y-2 md:col-span-2">
+          <label className="text-sm font-medium">Description</label>
+          <Input placeholder="Enter description" {...register("description")} />
+          {errors.description && (
+            <p className="text-sm text-red-500">{errors.description.message}</p>
+          )}
+        </div>
       </div>
 
-      {/* Category */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Category</label>
-        <Select
-          onValueChange={(value) => setValue("category", value)}
-          defaultValue={getValues("category")}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select category" />
-          </SelectTrigger>
-          <SelectContent>
-            {filteredCategories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.category && (
-          <p className="text-sm text-red-500">{errors.category.message}</p>
-        )}
-      </div>
-
-      {/* Date */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Date</label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "w-full pl-3 text-left font-normal",
-                !date && "text-muted-foreground"
-              )}
-            >
-              {date ? format(date, "PPP") : <span>Pick a date</span>}
-              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={(date) => setValue("date", date)}
-              disabled={(date) =>
-                date > new Date() || date < new Date("1900-01-01")
-              }
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-        {errors.date && (
-          <p className="text-sm text-red-500">{errors.date.message}</p>
-        )}
-      </div>
-
-      {/* Description */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Description</label>
-        <Input placeholder="Enter description" {...register("description")} />
-        {errors.description && (
-          <p className="text-sm text-red-500">{errors.description.message}</p>
-        )}
-      </div>
-
-      {/* Recurring Toggle */}
-      <div className="flex flex-row items-center justify-between rounded-lg border p-4">
+      {/* Recurring Transaction */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border rounded-lg">
         <div className="space-y-0.5">
           <label className="text-base font-medium">Recurring Transaction</label>
-          <div className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Set up a recurring schedule for this transaction
-          </div>
+          </p>
         </div>
         <Switch
           checked={isRecurring}
@@ -305,7 +332,7 @@ export function AddTransactionForm({
         </div>
       )}
 
-      {/* Actions */}
+      {/* Action Buttons */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Button
           type="button"
