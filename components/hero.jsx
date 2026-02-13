@@ -1,13 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
 import Image from "next/image";
 import { ArrowRight, Download } from "lucide-react";
 
 const HeroSection = () => {
   const imageRef = useRef(null);
+  const [current, setCurrent] = useState(0);
+  const touchStartX = useRef(null);
+  const [isInteracting, setIsInteracting] = useState(false);
+
+  const images = [
+    "/banner.jpeg",
+    "/banner2.jpg",
+    "/banner3.jpg",
+    "/banner4.jpg",
+  ];
 
   useEffect(() => {
     const imageElement = imageRef.current;
@@ -24,6 +34,40 @@ const HeroSection = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Auto-rotate carousel (pauses while interacting)
+  useEffect(() => {
+    if (!images || images.length <= 1) return;
+    if (isInteracting) return;
+    const id = setInterval(() => {
+      setCurrent((c) => (c + 1) % images.length);
+    }, 4000);
+    return () => clearInterval(id);
+  }, [images.length, isInteracting]);
+
+  // Touch handlers for swipe
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches?.[0]?.clientX ?? null;
+    setIsInteracting(true);
+  };
+
+  const handleTouchEnd = (e) => {
+    const endX = e.changedTouches?.[0]?.clientX ?? null;
+    if (touchStartX.current == null || endX == null) {
+      setIsInteracting(false);
+      return;
+    }
+    const delta = endX - touchStartX.current;
+    const threshold = 50; // px
+    if (delta > threshold) {
+      setCurrent((c) => (c - 1 + images.length) % images.length);
+    } else if (delta < -threshold) {
+      setCurrent((c) => (c + 1) % images.length);
+    }
+    touchStartX.current = null;
+    // small delay before re-enabling auto-rotate for smoother UX
+    setTimeout(() => setIsInteracting(false), 300);
+  };
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-r from-indigo-100 via-purple-50 to-indigo-50">
@@ -125,17 +169,74 @@ const HeroSection = () => {
           </Button>
         </div>
 
-        {/* Dashboard Preview */}
-        <div className="mt-16">
-          <div ref={imageRef} className="transition-transform duration-500">
-            <Image
-              src="/banner.jpeg"
-              width={1200}
-              height={720}
-              alt="Finance dashboard preview"
-              priority
-              className="rounded-2xl border shadow-2xl mx-auto"
-            />
+        {/* Dashboard Preview: responsive — mobile carousel, desktop 4-col grid */}
+        <div className="mt-16" ref={imageRef}>
+          {/* Mobile: centered 90vw carousel with 5% side margins */}
+          <div className="md:hidden">
+            <div
+              className="relative overflow-hidden mx-auto w-[90vw] rounded-2xl shadow-2xl border"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              onMouseEnter={() => setIsInteracting(true)}
+              onMouseLeave={() => setIsInteracting(false)}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div
+                className="flex transition-transform duration-700 ease-in-out"
+                style={{
+                  width: `${images.length * 90}vw`,
+                  transform: `translateX(-${current * 90}vw)`,
+                }}
+              >
+                {images.map((src, idx) => (
+                  <div
+                    key={src}
+                    className="flex-shrink-0 w-[90vw] relative overflow-hidden"
+                    style={{ height: 'calc(90vw * 9 / 16)' }}
+                  >
+                    <Image
+                      src={src}
+                      fill
+                      alt={`dashboard-preview-${idx}`}
+                      priority={idx === 0}
+                      className="object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Mobile Dots */}
+              <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-2">
+                {images.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrent(i)}
+                    aria-label={`Go to slide ${i + 1}`}
+                    className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                      i === current ? "bg-white scale-110" : "bg-white/60"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop: premium 4-column grid (centered with side margins) */}
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-6 mt-6 mx-auto w-[90vw] max-w-[1400px]">
+            {images.map((src, idx) => (
+              <div
+                key={src}
+                className="overflow-hidden rounded-2xl border bg-white/60 backdrop-blur-sm shadow-lg transition-transform duration-300 hover:scale-105 hover:shadow-2xl transform-gpu will-change-transform"
+              >
+                <Image
+                  src={src}
+                  width={600}
+                  height={400}
+                  alt={`grid-preview-${idx}`}
+                  className="w-full h-40 lg:h-48 object-cover"
+                />
+              </div>
+            ))}
           </div>
         </div>
       </div>

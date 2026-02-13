@@ -132,16 +132,18 @@ const Header = () => {
                 <Link
                   href="/dashboard"
                   onClick={() => setOpen(false)}
-                  className="w-full text-center py-2 rounded-full text-white border border-white/30"
+                  className="flex items-center justify-center gap-2 w-full py-2 rounded-full text-white border border-white/30"
                 >
+                  <LayoutDashboard size={18} />
                   Dashboard
                 </Link>
 
                 <Link
                   href="/transaction/create"
                   onClick={() => setOpen(false)}
-                  className="w-full text-center py-2 rounded-full bg-white text-indigo-700 font-semibold"
+                  className="flex items-center justify-center gap-2 w-full py-2 rounded-full bg-white text-indigo-700 font-semibold"
                 >
+                  <PenBox size={18} />
                   Add Transaction
                 </Link>
               </div>
