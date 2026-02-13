@@ -111,7 +111,7 @@ const HeroSection = () => {
             className="group w-full sm:w-auto px-8 py-4 rounded-full text-base border-gray-400/60 bg-white/70 backdrop-blur-sm hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all duration-300 active:scale-95"
           >
             <Link
-              href="/path-to-your-app.apk"
+              href="https://drive.google.com/file/d/17XIWgUa9O3pstwgWAnGhZBuzNHHBxEln/view?usp=drivesdk"
               target="_blank"
               className="flex items-center justify-center gap-2"
               download

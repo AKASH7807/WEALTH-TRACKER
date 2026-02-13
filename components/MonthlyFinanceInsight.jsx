@@ -1,152 +1,175 @@
 "use client";
 
-import React, { useState } from "react";
-import { toast } from "sonner";
+import {useState, useMemo, useCallback} from "react";
+import {toast} from "sonner";
 
-export default function MonthlyFinanceInsight() {
-  const [income, setIncome] = useState("");
-  const [expenses, setExpenses] = useState("");
-  const [report, setReport] = useState(null);
+const MonthlyFinanceInsight = () => {
+    const [income, setIncome] = useState("");
+    const [expenses, setExpenses] = useState("");
+    const [report, setReport] = useState(null);
 
-  const currencyFormatter = new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 2,
-  });
+    // Memoized currency formatter
+    const currencyFormatter = useMemo(() => {
+        return new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+            maximumFractionDigits: 2
+        });
+    }, []);
 
-  const calculateReport = () => {
-    const inc = parseFloat(income);
-    const exp = parseFloat(expenses);
+    // Handle numeric input (1 decimal max)
+    const handleNumberInput = useCallback((value, setter) => {
+        const cleaned = value.replace(/[^\d.]/g, "").replace(/(\..*?)\..*/g, "$1");
+        setter(cleaned);
+    }, []);
 
-    if (isNaN(inc) || isNaN(exp) || inc <= 0) {
-      toast.error("Please enter value.");
-      return;
-    }
+    const calculateReport = useCallback(() => {
+        const inc = Number(income);
+        const exp = Number(expenses);
 
-    const ratio = (exp / inc) * 100;
+        if (! inc || inc <= 0 || exp < 0 || Number.isNaN(inc) || Number.isNaN(exp)) {
+            toast.error("Please enter valid income and expenses.");
+            return;
+        }
 
-    let suggestion = "";
-    let color = "";
+        const ratio = Math.min((exp / inc) * 100, 100);
 
-    if (ratio > 70) {
-      suggestion =
-        "Warning: You are spending a high portion of your income. Consider reducing expenses.";
-      color = "#F87171"; // red
-    } else if (ratio > 50) {
-      suggestion =
-        "Caution: Expenses are moderate compared to your income. Keep tracking.";
-      color = "#FBBF24"; // yellow
-    } else if (ratio > 30) {
-      suggestion =
-        "Good: Expenses are under control, you’re saving a healthy portion.";
-      color = "#34D399"; // green
-    } else {
-      suggestion =
-        "Excellent: You’re spending very little of your income. Opportunity to save or invest more.";
-      color = "#60A5FA"; // blue
-    }
+        let suggestion = "";
+        let color = "";
 
-    setReport({
-      income: inc,
-      expenses: exp,
-      ratio: Number(ratio.toFixed(2)),
-      suggestion,
-      color,
-    });
-  };
+        if (ratio > 70) {
+            suggestion = "Warning: High spending! Consider reducing expenses.";
+            color = "#EF4444"; // Red
+        } else if (ratio > 50) {
+            suggestion = "Caution: Moderate expenses. Track carefully.";
+            color = "#F59E0B"; // Orange
+        } else if (ratio > 30) {
+            suggestion = "Good: Healthy savings. Keep it consistent!";
+            color = "#10B981"; // Green
+        } else {
+            suggestion = "Excellent: Very strong saving potential!";
+            color = "#3B82F6"; // Blue
+        }
 
-  return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-lg border">
-      <h2 className="text-xl font-semibold mb-4 text-center">
-        Monthly Finance Insight
-      </h2>
+        setReport({
+            income: inc,
+            expenses: exp,
+            ratio: Number(ratio.toFixed(2)),
+            suggestion,
+            color
+        });
+    }, [income, expenses]);
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Monthly income
-          </label>
-          <div className="flex items-center border rounded-md overflow-hidden">
-            <span className="px-3 bg-gray-100 text-sm">₹</span>
-            <input
-              inputMode="numeric"
-              type="text"
-              placeholder="25,000"
-              value={income}
-              onChange={(e) => setIncome(e.target.value)}
-              className="flex-1 p-2 outline-none"
-            />
-          </div>
-        </div>
+    const isValid = Number(income) > 0 && Number(expenses) >= 0;
 
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Monthly expenses
-          </label>
-          <div className="flex items-center border rounded-md overflow-hidden">
-            <span className="px-3 bg-gray-100 text-sm">₹</span>
-            <input
-              inputMode="numeric"
-              type="text"
-              placeholder="15,000"
-              value={expenses}
-              onChange={(e) => setExpenses(e.target.value)}
-              className="flex-1 p-2 outline-none"
-            />
-          </div>
-        </div>
-      </div>
+    // Dynamic style objects (no template literals)
+    const progressBarStyle = {
+        width: report ? `${
+            Math.min(report.ratio, 100)
+        }%` : "0%",
+        backgroundColor: report ?. color || "#4CAF50",
+        transition: "width 0.7s ease-out",
+        height: "100%",
+        borderRadius: "9999px"
+    };
 
-      <button
-        onClick={calculateReport}
-        className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white py-2 rounded-md shadow-md hover:opacity-95 transition"
-      >
-        Generate Report
-      </button>
+    const suggestionStyle = {
+        borderLeftColor: report ?. color || "#4CAF50"
+    };
 
-      {report && (
-        <div className="mt-6 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 bg-gray-50 rounded-md border">
-              <div className="text-sm text-gray-500">Income</div>
-              <div className="text-xl font-semibold">
-                {currencyFormatter.format(report.income)}
-              </div>
+    return (
+        <div className="w-full max-w-md mx-auto bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+            <h2 className="text-xl font-semibold text-center mb-6">Monthly Finance Insight</h2>
+
+            {/* Inputs */}
+            <div className="space-y-4">
+                <NumericInput label="Monthly Income"
+                    value={income}
+                    onChange={
+                        (val) => handleNumberInput(val, setIncome)
+                    }/>
+                <NumericInput label="Monthly Expenses"
+                    value={expenses}
+                    onChange={
+                        (val) => handleNumberInput(val, setExpenses)
+                    }/>
             </div>
-            <div className="p-3 bg-gray-50 rounded-md border">
-              <div className="text-sm text-gray-500">Expenses</div>
-              <div className="text-xl font-semibold">
-                {currencyFormatter.format(report.expenses)}
-              </div>
-            </div>
-          </div>
 
-          <div className="w-full bg-gray-100 h-6 rounded-full overflow-hidden mb-2">
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${report.ratio}%`,
-                background: `linear-gradient(90deg, ${report.color}, #6d28d9)`,
-                transition: "width 0.6s ease",
-              }}
-            />
-          </div>
+            {/* Button */}
+            <button onClick={calculateReport}
+                disabled={
+                    ! isValid
+                }
+                className={
+                    `w-full mt-6 py-2.5 rounded-lg text-white font-medium transition ${
+                        isValid ? "bg-gradient-to-r from-purple-600 to-purple-500 hover:opacity-95 shadow-md" : "bg-gray-300 cursor-not-allowed"
+                    }`
+            }>
+                Generate Report
+            </button>
 
-          <div
-            className="p-3 rounded-md"
-            style={{
-              borderLeft: `4px solid ${report.color}`,
-              background: "#fff",
-            }}
-          >
-            <div className="font-medium mb-1">{report.suggestion}</div>
-            <div className="text-sm text-gray-500">
-              Expense ratio:{" "}
-              <span className="font-medium">{report.ratio}%</span>
-            </div>
-          </div>
+            {/* Report Section */}
+            {
+            report && (
+                <div className="mt-6 space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <SummaryCard title="Income"
+                            value={
+                                currencyFormatter.format(report.income)
+                            }/>
+                        <SummaryCard title="Expenses"
+                            value={
+                                currencyFormatter.format(report.expenses)
+                            }/>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full h-6 bg-gray-100 rounded-full overflow-hidden">
+                        <div style={progressBarStyle}/>
+                    </div>
+                    <p className="text-right text-xs mt-1 text-gray-500">
+                        Expense Ratio: {
+                        report.ratio
+                    }%
+                    </p>
+
+                    {/* Suggestion */}
+                    <div className="p-4 rounded-xl border-l-4 bg-gray-50 text-sm sm:text-base"
+                        style={suggestionStyle}>
+                        {
+                        report.suggestion
+                    } </div>
+                </div>
+            )
+        } </div>
+    );
+};
+
+// Reusable Numeric Input Component
+const NumericInput = ({label, value, onChange}) => (
+    <div>
+        <label className="block text-sm font-medium mb-1">
+            {label}</label>
+        <div className="flex items-center border rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-purple-500 transition">
+            <span className="px-3 bg-gray-100 text-gray-600 text-sm">₹</span>
+            <input type="text" inputMode="decimal" placeholder="0"
+                value={value}
+                onChange={
+                    (e) => onChange(e.target.value)
+                }
+                className="w-full p-2.5 outline-none text-sm sm:text-base"/>
         </div>
-      )}
     </div>
-  );
-}
+);
+
+// Reusable Summary Card Component
+const SummaryCard = ({title, value}) => (
+    <div className="bg-gray-50 p-4 rounded-xl border text-center">
+        <p className="text-xs text-gray-500">
+            {title}</p>
+        <p className="text-lg font-semibold break-words">
+            {value}</p>
+    </div>
+);
+
+export default MonthlyFinanceInsight;
