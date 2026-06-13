@@ -179,7 +179,7 @@ const HeroSection = () => {
               onTouchEnd={handleTouchEnd}
               onMouseEnter={() => setIsInteracting(true)}
               onMouseLeave={() => setIsInteracting(false)}
-              style={{ WebkitTapHighlightColor: 'transparent' }}
+              style={{ WebkitTapHighlightColor: "transparent" }}
             >
               <div
                 className="flex transition-transform duration-700 ease-in-out"
@@ -188,11 +188,12 @@ const HeroSection = () => {
                   transform: `translateX(-${current * 90}vw)`,
                 }}
               >
+                
                 {images.map((src, idx) => (
                   <div
                     key={src}
                     className="flex-shrink-0 w-[90vw] relative overflow-hidden"
-                    style={{ height: 'calc(90vw * 9 / 16)' }}
+                    style={{ height: "calc(90vw * 9 / 16)" }}
                   >
                     <Image
                       src={src}
