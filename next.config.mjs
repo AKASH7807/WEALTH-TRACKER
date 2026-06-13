@@ -10,8 +10,6 @@ const nextConfig = {
     ],
     // Optimize image loading
     formats: ['image/avif', 'image/webp'],
-    // Cache images for 1 year
-    cacheTtl: 60 * 60 * 24 * 365,
   },
 
   // Enable compression
