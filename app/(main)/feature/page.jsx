@@ -11,6 +11,7 @@ import {
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
 
+// Note: Client component, ISR handled by Next.js default 
 export default function FeaturesPage() {
   const features = [
     {

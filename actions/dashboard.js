@@ -70,20 +70,42 @@ export async function getUserAccounts() {
 
     const user = await db.user.findUnique({
       where: { clerkUserId: userId },
-      select: { id: true }, // Only fetch user id for speed
+      select: { id: true },
     });
 
     if (!user) throw new Error("user not found");
 
+    // Fetch accounts with transaction aggregates for balance calculation
     const accounts = await db.account.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      include: {
-        _count: { select: { transactions: true } },
-      },
     });
 
-    return accounts.map(serializeTransaction);
+    // For each account, calculate balance from recent transactions only
+    const accountsWithBalance = await Promise.all(
+      accounts.map(async (account) => {
+        // Only sum recent transactions for balance (last 1000)
+        const transactions = await db.transaction.findMany({
+          where: { accountId: account.id },
+          select: { type: true, amount: true },
+          take: 1000,
+          orderBy: { date: "desc" },
+        });
+
+        const balance = transactions.reduce((sum, tx) => {
+          const amount = tx.amount.toNumber();
+          return tx.type === "INCOME" ? sum + amount : sum - amount;
+        }, 0);
+
+        return {
+          ...serializeTransaction(account),
+          balance,
+          _count: { transactions: transactions.length },
+        };
+      })
+    );
+
+    return accountsWithBalance;
   } catch (error) {
     throw new Error(error.message);
   }
@@ -96,14 +118,25 @@ export async function getDashboardData() {
 
     const user = await db.user.findUnique({
       where: { clerkUserId: userId },
-      select: { id: true }, // Only fetch user id for speed
+      select: { id: true },
     });
 
     if (!user) throw new Error("User not Found");
 
+    // Optimized: limit to recent 100 transactions instead of all
     const transactions = await db.transaction.findMany({
       where: { userId: user.id },
       orderBy: { date: "desc" },
+      take: 100, // Limit results for performance
+      select: {
+        id: true,
+        type: true,
+        amount: true,
+        description: true,
+        date: true,
+        category: true,
+        accountId: true,
+      },
     });
 
     return transactions.map(serializeTransaction);

@@ -70,30 +70,13 @@ export async function createTransaction(data) {
             throw new Error("Account not found");
         }
 
-        // Calculate new balance
-        const balanceChange = data.type === "EXPENSE" ? - data.amount : data.amount;
-        const newBalance = account.balance.toNumber() + balanceChange;
-
-        // Create transaction and update account balance
-        const transaction = await db.$transaction(async (tx) => {
-            const newTransaction = await tx.transaction.create({
-                data: {
-                    ... data,
-                    userId: user.id,
-                    nextRecurringDate: data.isRecurring && data.recurringInterval ? calculateNextRecurringDate(data.date, data.recurringInterval) : null
-                }
-            });
-
-            await tx.account.update({
-                where: {
-                    id: data.accountId
-                },
-                data: {
-                    balance: newBalance
-                }
-            });
-
-            return newTransaction;
+        // Create transaction (balance is calculated from all transactions, not stored)
+        const transaction = await db.transaction.create({
+            data: {
+                ... data,
+                userId: user.id,
+                nextRecurringDate: data.isRecurring && data.recurringInterval ? calculateNextRecurringDate(data.date, data.recurringInterval) : null
+            }
         });
 
         revalidatePath("/dashboard");
@@ -160,7 +143,7 @@ export async function updateTransaction(id, data) {
         
 
 
-        // Get original transaction to calculate balance change
+        // Get original transaction to verify it exists
         const originalTransaction = await db.transaction.findUnique({
             where: {
                 id,
@@ -175,40 +158,16 @@ export async function updateTransaction(id, data) {
             throw new Error("Transaction not found");
         
 
-
-        // Calculate balance changes
-        const oldBalanceChange = originalTransaction.type === "EXPENSE" ? - originalTransaction.amount.toNumber() : originalTransaction.amount.toNumber();
-
-        const newBalanceChange = data.type === "EXPENSE" ? - data.amount : data.amount;
-
-        const netBalanceChange = newBalanceChange - oldBalanceChange;
-
-        // Update transaction and account balance in a transaction
-        const transaction = await db.$transaction(async (tx) => {
-            const updated = await tx.transaction.update({
-                where: {
-                    id,
-                    userId: user.id
-                },
-                data: {
-                    ... data,
-                    nextRecurringDate: data.isRecurring && data.recurringInterval ? calculateNextRecurringDate(data.date, data.recurringInterval) : null
-                }
-            });
-
-            // Update account balance
-            await tx.account.update({
-                where: {
-                    id: data.accountId
-                },
-                data: {
-                    balance: {
-                        increment: netBalanceChange
-                    }
-                }
-            });
-
-            return updated;
+        // Update transaction (balance is calculated from all transactions, not stored)
+        const transaction = await db.transaction.update({
+            where: {
+                id,
+                userId: user.id
+            },
+            data: {
+                ... data,
+                nextRecurringDate: data.isRecurring && data.recurringInterval ? calculateNextRecurringDate(data.date, data.recurringInterval) : null
+            }
         });
 
         revalidatePath("/dashboard");

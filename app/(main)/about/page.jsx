@@ -1,3 +1,6 @@
+// Cache about page for 1 hour since it's static content
+export const revalidate = 3600;
+
 export default function AboutPage() {
   const aboutContent = {
     heading: "About Wealth",

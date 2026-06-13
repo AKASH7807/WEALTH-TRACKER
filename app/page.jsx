@@ -11,6 +11,9 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 
+// Cache landing page for 3600 seconds (1 hour)
+export const revalidate = 3600;
+
 export default function Home() {
   return (
     <div>

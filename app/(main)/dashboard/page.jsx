@@ -8,10 +8,15 @@ import { getCurrentBudget } from "@/actions/budget";
 import BudgetProgress from "./_components/budget-progress";
 import { DashboardOverview } from "./_components/transaction-overview";
 
-export const dynamic = 'force-dynamic';
+// Enable ISR with 60-second revalidation instead of force-dynamic
+export const revalidate = 60;
 
 async function DashboardPage() {
-  const accounts = await getUserAccounts();
+  // Parallelize requests instead of sequential
+  const [accounts, transactions] = await Promise.all([
+    getUserAccounts(),
+    getDashboardData(),
+  ]);
 
   const defaultAccount = accounts?.find((account) => account.isDefault);
 
@@ -19,8 +24,6 @@ async function DashboardPage() {
   if (defaultAccount) {
     budgetData = await getCurrentBudget(defaultAccount.id);
   }
-
-  const transactions = await getDashboardData();
 
   return (
     <div className="space-y-8">

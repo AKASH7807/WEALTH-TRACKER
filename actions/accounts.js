@@ -13,6 +13,24 @@ const serializeTransaction = (obj) => {
   return serialized;
 };
 
+// Calculate account balance from transactions (Income - Expenses)
+export async function calculateAccountBalance(accountId) {
+  try {
+    const transactions = await db.transaction.findMany({
+      where: { accountId },
+    });
+
+    const balance = transactions.reduce((sum, tx) => {
+      const amount = tx.amount.toNumber();
+      return tx.type === "INCOME" ? sum + amount : sum - amount;
+    }, 0);
+
+    return balance;
+  } catch (error) {
+    throw error;
+  }
+}
+
 // Update the default account
 export async function updateDefaultAccount(accountId) {
   try {
@@ -58,19 +76,88 @@ export async function getAccountWithTransaction(accountId) {
     const account = await db.account.findUnique({
       where: { id: accountId, userId: user.id },
       include: {
-        transactions: { orderBy: { date: "desc" } },
+        transactions: {
+          orderBy: { date: "desc" },
+          take: 1000, // Limit to prevent fetching huge datasets
+        },
         _count: { select: { transactions: true } },
       },
     });
 
     if (!account) return null;
 
+    // Calculate balance from transactions (Income - Expenses)
+    const calculatedBalance = account.transactions.reduce((sum, tx) => {
+      const amount = tx.amount.toNumber();
+      return tx.type === "INCOME" ? sum + amount : sum - amount;
+    }, 0);
+
     return {
       ...serializeTransaction(account),
+      balance: calculatedBalance,
       transactions: account.transactions.map(serializeTransaction),
     };
   } catch (error) {
     throw error;
+  }
+}
+
+// Recalculate all account balances based on transactions
+export async function recalculateAccountBalances() {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+    if (!user) throw new Error("User not found");
+
+    // Get all accounts for the user
+    const accounts = await db.account.findMany({
+      where: { userId: user.id },
+    });
+
+    // Get all transactions for the user
+    const transactions = await db.transaction.findMany({
+      where: { userId: user.id },
+    });
+
+    // Calculate correct balance for each account
+    const balanceUpdates = accounts.map((account) => {
+      const accountTransactions = transactions.filter(
+        (tx) => tx.accountId === account.id
+      );
+
+      // Calculate balance: sum of all income - sum of all expenses
+      const correctBalance = accountTransactions.reduce((sum, tx) => {
+        const amount = tx.amount.toNumber();
+        return tx.type === "INCOME" ? sum + amount : sum - amount;
+      }, 0);
+
+      return { accountId: account.id, correctBalance };
+    });
+
+    // Update all accounts in a single transaction
+    await db.$transaction(
+      balanceUpdates.map((update) =>
+        db.account.update({
+          where: { id: update.accountId },
+          data: { balance: update.correctBalance },
+        })
+      )
+    );
+
+    revalidatePath("/dashboard");
+    accounts.forEach((account) =>
+      revalidatePath(`/account/${account.id}`)
+    );
+
+    return {
+      success: true,
+      message: "Account balances recalculated successfully",
+      updates: balanceUpdates,
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }
 
@@ -83,41 +170,21 @@ export async function bulkDeleteTransactions(transactionIds) {
     const user = await db.user.findUnique({ where: { clerkUserId: userId } });
     if (!user) throw new Error("User not found");
 
-    // Fetch transactions once
+    // Fetch transactions to get affected account IDs
     const transactions = await db.transaction.findMany({
       where: { id: { in: transactionIds }, userId: user.id },
     });
 
-    // Compute balance changes per account
-    const accountBalanceChanges = transactions.reduce((acc, tx) => {
-      const change = tx.type === "EXPENSE" ? tx.amount : -tx.amount;
-      acc[tx.accountId] = (acc[tx.accountId] || 0) + change;
-      return acc;
-    }, {});
+    const affectedAccountIds = [...new Set(transactions.map((tx) => tx.accountId))];
 
-    // Delete transactions and update balances in a single transaction
-    await db.$transaction(async (tx) => {
-      await tx.transaction.deleteMany({
-        where: { id: { in: transactionIds }, userId: user.id },
-      });
-
-      // Run all account updates in parallel for speed
-      await Promise.all(
-        Object.entries(accountBalanceChanges).map(
-          ([accountId, balanceChange]) =>
-            tx.account.update({
-              where: { id: accountId },
-              data: { balance: { increment: balanceChange } },
-            })
-        )
-      );
+    // Delete transactions only (balance is calculated from remaining transactions)
+    await db.transaction.deleteMany({
+      where: { id: { in: transactionIds }, userId: user.id },
     });
 
     // Revalidate dashboard and all affected accounts
     revalidatePath("/dashboard");
-    Object.keys(accountBalanceChanges).forEach((id) =>
-      revalidatePath(`/account/${id}`)
-    );
+    affectedAccountIds.forEach((id) => revalidatePath(`/account/${id}`));
 
     return { success: true };
   } catch (error) {

@@ -67,14 +67,14 @@ const MonthlyFinanceInsight = () => {
         width: report ? `${
             Math.min(report.ratio, 100)
         }%` : "0%",
-        backgroundColor: report ?. color || "#4CAF50",
+        backgroundColor: report?.color || "#4CAF50",
         transition: "width 0.7s ease-out",
         height: "100%",
         borderRadius: "9999px"
     };
 
     const suggestionStyle = {
-        borderLeftColor: report ?. color || "#4CAF50"
+        borderLeftColor: report?.color || "#4CAF50"
     };
 
     return (

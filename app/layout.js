@@ -3,7 +3,12 @@ import "./font.css";
 
 import Header from "@/components/header";
 import { ClerkProvider } from "@clerk/nextjs";
-import { Toaster } from "sonner";
+import dynamic from "next/dynamic";
+
+// Lazy load Toaster since it's not critical for initial render
+const Toaster = dynamic(() => import("sonner").then((mod) => ({ default: mod.Toaster })), {
+  ssr: false,
+});
 
 export const metadata = {
   title: "wealth",

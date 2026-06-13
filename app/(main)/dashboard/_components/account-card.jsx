@@ -12,10 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import useFetch from "@/hooks/use-fetch";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import React, { useEffect } from "react";
+import React, { useEffect, memo } from "react";
 import { toast } from "sonner";
 
-const AccountCard = ({ account }) => {
+const AccountCard = memo(({ account }) => {
   const { name, type, balance, id, isDefault } = account;
 
   const {
@@ -81,6 +81,8 @@ const AccountCard = ({ account }) => {
       </Link>
     </Card>
   );
-};
+});
+
+AccountCard.displayName = "AccountCard";
 
 export default AccountCard;

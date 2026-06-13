@@ -50,7 +50,7 @@ import {
     FileText
 } from "lucide-react";
 import {useRouter} from "next/navigation";
-import React, {useEffect, useMemo, useState} from "react";
+import React, {useEffect, useMemo, useState, memo} from "react";
 import {BarLoader} from "react-spinners";
 import {toast} from "sonner";
 
@@ -63,7 +63,7 @@ const RECURRING_INTERVALS = {
     YEARLY: "Yearly"
 };
 
-export function TransactionTable({transactions}) {
+const TransactionTable = memo(function TransactionTable({transactions}) {
     const [selectedIds, setSelectedIds] = useState([]);
     const [sortConfig, setSortConfig] = useState({field: "date", direction: "desc"});
     const [searchTerm, setSearchTerm] = useState("");
@@ -655,6 +655,8 @@ export function TransactionTable({transactions}) {
         )
     } </div>
     );
-}
+});
+
+TransactionTable.displayName = "TransactionTable";
 
 export default TransactionTable;

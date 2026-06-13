@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import {
   BarChart,
   Bar,
@@ -29,7 +29,7 @@ const DATE_RANGES = {
   ALL: { label: "All Time", days: null },
 };
 
-export function AccountChart({ transactions }) {
+const AccountChart = memo(function AccountChart({ transactions }) {
   const [dateRange, setDateRange] = useState("1M");
 
   const filteredData = useMemo(() => {
@@ -167,5 +167,8 @@ export function AccountChart({ transactions }) {
       </CardContent>
     </Card>
   );
-}
+});
+
+AccountChart.displayName = "AccountChart";
+
 export default AccountChart;

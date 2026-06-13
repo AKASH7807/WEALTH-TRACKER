@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useState, useMemo} from "react";
+import {useEffect, useState, useMemo, memo} from "react";
 import {
     PieChart,
     Pie,
@@ -32,7 +32,7 @@ const COLORS = [
     "#9FA8DA",
 ];
 
-export function DashboardOverview({
+const DashboardOverview = memo(function DashboardOverview({
     accounts = [],
     transactions = []
 }) {
@@ -46,7 +46,7 @@ export function DashboardOverview({
 
         const defaultAccount = accounts.find((a) => a.isDefault) ?? accounts[0];
 
-        setSelectedAccountId(defaultAccount ?. id);
+        setSelectedAccountId(defaultAccount?.id);
     }, [accounts]);
 
     // ✅ Filter transactions safely
@@ -219,4 +219,8 @@ export function DashboardOverview({
             </Card>
         </div>
     );
-}
+});
+
+DashboardOverview.displayName = "DashboardOverview";
+
+export { DashboardOverview };
