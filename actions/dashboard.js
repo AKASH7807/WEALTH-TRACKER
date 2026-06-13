@@ -98,7 +98,7 @@ export async function getUserAccounts() {
         }, 0);
 
         return {
-          ...serializeTransaction(account),
+          ...account,
           balance,
           _count: { transactions: transactions.length },
         };
