@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -29,6 +29,7 @@ import { accountSchema } from "@/app/lib/schema";
 
 export function CreateAccountDrawer({ children }) {
   const [open, setOpen] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -53,9 +54,31 @@ export function CreateAccountDrawer({ children }) {
     data: newAccount,
   } = useFetch(createAccount);
 
-  const onSubmit = async (data) => {
-    await createAccountFn(data);
-  };
+  const onSubmit = useCallback(
+    async (data) => {
+      await createAccountFn(data);
+    },
+    [createAccountFn],
+  );
+
+  const handleTypeChange = useCallback(
+    (value) => {
+      setValue("type", value, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    },
+    [setValue],
+  );
+
+  const handleDefaultChange = useCallback(
+    (checked) => {
+      setValue("isDefault", checked, {
+        shouldDirty: true,
+      });
+    },
+    [setValue],
+  );
 
   useEffect(() => {
     if (newAccount && !createAccountLoading) {
@@ -63,7 +86,7 @@ export function CreateAccountDrawer({ children }) {
       reset();
       setOpen(false);
     }
-  }, [newAccount, reset]);
+  }, [newAccount, createAccountLoading, reset]);
 
   useEffect(() => {
     if (error) {
@@ -74,10 +97,12 @@ export function CreateAccountDrawer({ children }) {
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>{children}</DrawerTrigger>
+
       <DrawerContent>
         <DrawerHeader>
           <DrawerTitle>Create New Account</DrawerTitle>
         </DrawerHeader>
+
         <div className="px-4 pb-4">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
@@ -87,11 +112,13 @@ export function CreateAccountDrawer({ children }) {
               >
                 Account Name
               </label>
+
               <Input
                 id="name"
                 placeholder="e.g., Main Checking"
                 {...register("name")}
               />
+
               {errors.name && (
                 <p className="text-sm text-red-500">{errors.name.message}</p>
               )}
@@ -104,18 +131,21 @@ export function CreateAccountDrawer({ children }) {
               >
                 Account Type
               </label>
+
               <Select
-                onValueChange={(value) => setValue("type", value)}
+                onValueChange={handleTypeChange}
                 defaultValue={watch("type")}
               >
                 <SelectTrigger id="type">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
+
                 <SelectContent>
                   <SelectItem value="CURRENT">Current</SelectItem>
                   <SelectItem value="SAVINGS">Savings</SelectItem>
                 </SelectContent>
               </Select>
+
               {errors.type && (
                 <p className="text-sm text-red-500">{errors.type.message}</p>
               )}
@@ -128,6 +158,7 @@ export function CreateAccountDrawer({ children }) {
               >
                 Initial Balance
               </label>
+
               <Input
                 id="balance"
                 type="number"
@@ -135,6 +166,7 @@ export function CreateAccountDrawer({ children }) {
                 placeholder="0.00"
                 {...register("balance")}
               />
+
               {errors.balance && (
                 <p className="text-sm text-red-500">{errors.balance.message}</p>
               )}
@@ -148,14 +180,16 @@ export function CreateAccountDrawer({ children }) {
                 >
                   Set as Default
                 </label>
+
                 <p className="text-sm text-muted-foreground">
                   This account will be selected by default for transactions
                 </p>
               </div>
+
               <Switch
                 id="isDefault"
                 checked={watch("isDefault")}
-                onCheckedChange={(checked) => setValue("isDefault", checked)}
+                onCheckedChange={handleDefaultChange}
               />
             </div>
 
@@ -165,6 +199,7 @@ export function CreateAccountDrawer({ children }) {
                   Cancel
                 </Button>
               </DrawerClose>
+
               <Button
                 type="submit"
                 className="flex-1"

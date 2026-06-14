@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, memo } from "react";
+import { useState, useMemo, memo, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -29,51 +29,73 @@ const DATE_RANGES = {
   ALL: { label: "All Time", days: null },
 };
 
+const DATE_RANGE_ENTRIES = Object.entries(DATE_RANGES);
+
 const AccountChart = memo(function AccountChart({ transactions }) {
   const [dateRange, setDateRange] = useState("1M");
 
   const filteredData = useMemo(() => {
     const range = DATE_RANGES[dateRange];
+
     const now = new Date();
+    const endDate = endOfDay(now);
+
     const startDate = range.days
       ? startOfDay(subDays(now, range.days))
       : startOfDay(new Date(0));
 
-    // Filter transactions within date range
-    const filtered = transactions.filter(
-      (t) => new Date(t.date) >= startDate && new Date(t.date) <= endOfDay(now)
-    );
+    const grouped = Object.create(null);
 
-    // Group transactions by date
-    const grouped = filtered.reduce((acc, transaction) => {
-      const date = format(new Date(transaction.date), "MMM dd");
-      if (!acc[date]) {
-        acc[date] = { date, income: 0, expense: 0 };
+    for (const transaction of transactions) {
+      const transactionDate = new Date(transaction.date);
+
+      if (transactionDate < startDate || transactionDate > endDate) {
+        continue;
       }
+
+      const date = format(transactionDate, "MMM dd");
+
+      if (!grouped[date]) {
+        grouped[date] = {
+          date,
+          income: 0,
+          expense: 0,
+        };
+      }
+
       if (transaction.type === "INCOME") {
-        acc[date].income += transaction.amount;
+        grouped[date].income += transaction.amount;
       } else {
-        acc[date].expense += transaction.amount;
+        grouped[date].expense += transaction.amount;
       }
-      return acc;
-    }, {});
+    }
 
-    // Convert to array and sort by date
     return Object.values(grouped).sort(
-      (a, b) => new Date(a.date) - new Date(b.date)
+      (a, b) => new Date(a.date) - new Date(b.date),
     );
   }, [transactions, dateRange]);
 
-  // Calculate totals for the selected period
-  const totals = useMemo(() => {
-    return filteredData.reduce(
-      (acc, day) => ({
-        income: acc.income + day.income,
-        expense: acc.expense + day.expense,
-      }),
-      { income: 0, expense: 0 }
-    );
-  }, [filteredData]);
+  const totals = useMemo(
+    () =>
+      filteredData.reduce(
+        (acc, day) => {
+          acc.income += day.income;
+          acc.expense += day.expense;
+          return acc;
+        },
+        { income: 0, expense: 0 },
+      ),
+    [filteredData],
+  );
+
+  const balance = useMemo(
+    () => totals.income - totals.expense,
+    [totals.income, totals.expense],
+  );
+
+  const formatCurrency = useCallback((value) => `₹${value}`, []);
+
+  const tooltipFormatter = useCallback((value) => [`₹${value}`, undefined], []);
 
   return (
     <Card>
@@ -81,12 +103,14 @@ const AccountChart = memo(function AccountChart({ transactions }) {
         <CardTitle className="text-base font-normal">
           Transaction Overview
         </CardTitle>
-        <Select defaultValue={dateRange} onValueChange={setDateRange}>
+
+        <Select value={dateRange} onValueChange={setDateRange}>
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="Select range" />
           </SelectTrigger>
+
           <SelectContent>
-            {Object.entries(DATE_RANGES).map(([key, { label }]) => (
+            {DATE_RANGE_ENTRIES.map(([key, { label }]) => (
               <SelectItem key={key} value={key}>
                 {label}
               </SelectItem>
@@ -94,67 +118,80 @@ const AccountChart = memo(function AccountChart({ transactions }) {
           </SelectContent>
         </Select>
       </CardHeader>
+
       <CardContent>
         <div className="flex justify-around mb-6 text-sm">
           <div className="text-center">
             <p className="text-muted-foreground">Total Income</p>
             <p className="text-lg font-bold text-green-500">
-              {`₹${totals.income.toFixed(2)}`}
+              ₹{totals.income.toFixed(2)}
             </p>
           </div>
+
           <div className="text-center">
             <p className="text-muted-foreground">Total Expenses</p>
             <p className="text-lg font-bold text-red-500">
-              {`₹${totals.expense.toFixed(2)}`}
+              ₹{totals.expense.toFixed(2)}
             </p>
           </div>
+
           <div className="text-center">
             <p className="text-muted-foreground">Balance</p>
             <p
               className={`text-lg font-bold ${
-                totals.income - totals.expense >= 0
-                  ? "text-green-500"
-                  : "text-red-500"
+                balance >= 0 ? "text-green-500" : "text-red-500"
               }`}
             >
-              {`₹${(totals.income - totals.expense).toFixed(2)}`}
+              ₹{balance.toFixed(2)}
             </p>
           </div>
         </div>
+
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={filteredData}
-              margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+              margin={{
+                top: 10,
+                right: 10,
+                left: 10,
+                bottom: 0,
+              }}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
+
               <XAxis
                 dataKey="date"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
               />
+
               <YAxis
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value) => `₹${value}`}
+                tickFormatter={formatCurrency}
               />
+
               <Tooltip
-                formatter={(value) => [`₹${value}`, undefined]}
+                formatter={tooltipFormatter}
                 contentStyle={{
                   backgroundColor: "#f2f3f480",
                   border: "1px solid #aeb6bf80",
                   borderRadius: "var(--radius)",
                 }}
               />
+
               <Legend />
+
               <Bar
                 dataKey="income"
                 name="Income"
                 fill="#22c55e"
                 radius={[4, 4, 0, 0]}
               />
+
               <Bar
                 dataKey="expense"
                 name="Expense"

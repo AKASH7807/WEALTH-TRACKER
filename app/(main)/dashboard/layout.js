@@ -1,22 +1,25 @@
-import React, { Suspense } from "react";
+import React, { Suspense, memo } from "react";
 import DashboardPage from "./page";
 import { BarLoader } from "react-spinners";
 
-const DashboardLayout = () => {
+const DashboardLoader = () => (
+  <BarLoader className="mt-4" width="100%" color="#9333ea" />
+);
+
+const DashboardLayout = memo(function DashboardLayout() {
   return (
     <div className="px-5 py-8">
-      <h1 className="gradient-title text-3xl md:text-4xl font-bold mb-5 bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-violet-500 to-pink-500">
+      <h1 className="gradient-title mb-5 bg-gradient-to-r from-indigo-500 via-violet-500 to-pink-500 bg-clip-text text-3xl font-bold text-transparent md:text-4xl">
         Dashboard
       </h1>
 
-      {/* Dashboard Page  */}
-      <Suspense
-        fallback={<BarLoader className="mt-4" width={"100%"} color="#9333ea" />}
-      >
+      <Suspense fallback={<DashboardLoader />}>
         <DashboardPage />
       </Suspense>
     </div>
   );
-};
+});
+
+DashboardLayout.displayName = "DashboardLayout";
 
 export default DashboardLayout;

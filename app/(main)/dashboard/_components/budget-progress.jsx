@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import useFetch from "@/hooks/use-fetch";
 import { toast } from "sonner";
@@ -17,10 +17,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updateBudget } from "@/actions/budget";
 
-const BudgetProgress = memo(function BudgetProgress({ initialBudget, currentExpenses }) {
+const BudgetProgress = memo(function BudgetProgress({
+  initialBudget,
+  currentExpenses,
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [newBudget, setNewBudget] = useState(
-    initialBudget?.amount?.toString() || ""
+    initialBudget?.amount?.toString() || "",
   );
 
   const {
@@ -30,25 +33,52 @@ const BudgetProgress = memo(function BudgetProgress({ initialBudget, currentExpe
     error,
   } = useFetch(updateBudget);
 
-  const percentUsed = initialBudget
-    ? (currentExpenses / initialBudget.amount) * 100
-    : 0;
+  useEffect(() => {
+    setNewBudget(initialBudget?.amount?.toString() || "");
+  }, [initialBudget?.amount]);
 
-  const handleUpdateBudget = async () => {
-    const amount = parseFloat(newBudget);
+  const percentUsed = useMemo(() => {
+    if (!initialBudget?.amount) return 0;
+    return (currentExpenses / initialBudget.amount) * 100;
+  }, [currentExpenses, initialBudget]);
 
-    if (isNaN(amount) || amount <= 0) {
+  const budgetText = useMemo(() => {
+    if (!initialBudget) return "No budget set";
+
+    return `₹${currentExpenses.toFixed(
+      2,
+    )} of ₹${initialBudget.amount.toFixed(2)} spent`;
+  }, [currentExpenses, initialBudget]);
+
+  const progressColor = useMemo(() => {
+    if (percentUsed >= 90) return "bg-red-500";
+    if (percentUsed >= 75) return "bg-yellow-500";
+    return "bg-green-500";
+  }, [percentUsed]);
+
+  const handleUpdateBudget = useCallback(async () => {
+    const amount = Number.parseFloat(newBudget);
+
+    if (Number.isNaN(amount) || amount <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
 
     await updateBudgetFn(amount);
-  };
+  }, [newBudget, updateBudgetFn]);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setNewBudget(initialBudget?.amount?.toString() || "");
     setIsEditing(false);
-  };
+  }, [initialBudget]);
+
+  const handleEdit = useCallback(() => {
+    setIsEditing(true);
+  }, []);
+
+  const handleBudgetChange = useCallback((e) => {
+    setNewBudget(e.target.value);
+  }, []);
 
   useEffect(() => {
     if (updatedBudget?.success) {
@@ -70,18 +100,20 @@ const BudgetProgress = memo(function BudgetProgress({ initialBudget, currentExpe
           <CardTitle className="text-sm font-medium">
             Monthly Budget (Default Account)
           </CardTitle>
-          <div className="flex items-center gap-2 mt-1">
+
+          <div className="mt-1 flex items-center gap-2">
             {isEditing ? (
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
                   value={newBudget}
-                  onChange={(e) => setNewBudget(e.target.value)}
+                  onChange={handleBudgetChange}
                   className="w-32"
                   placeholder="Enter amount"
                   autoFocus
                   disabled={isLoading}
                 />
+
                 <Button
                   variant="ghost"
                   size="icon"
@@ -90,6 +122,7 @@ const BudgetProgress = memo(function BudgetProgress({ initialBudget, currentExpe
                 >
                   <Check className="h-4 w-4 text-green-500" />
                 </Button>
+
                 <Button
                   variant="ghost"
                   size="icon"
@@ -101,15 +134,12 @@ const BudgetProgress = memo(function BudgetProgress({ initialBudget, currentExpe
               </div>
             ) : (
               <>
-                <CardDescription>
-                  {initialBudget
-                    ? `₹${currentExpenses.toFixed(2)} of ₹${initialBudget.amount.toFixed(2)} spent`
-                    : "No budget set"}
-                </CardDescription>
+                <CardDescription>{budgetText}</CardDescription>
+
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setIsEditing(true)}
+                  onClick={handleEdit}
                   className="h-6 w-6"
                 >
                   <Pencil className="h-3 w-3" />
@@ -119,21 +149,13 @@ const BudgetProgress = memo(function BudgetProgress({ initialBudget, currentExpe
           </div>
         </div>
       </CardHeader>
+
       <CardContent>
         {initialBudget && (
           <div className="space-y-2">
-            <Progress
-              value={percentUsed}
-              extraStyles={`${
-                // add to Progress component
-                percentUsed >= 90
-                  ? "bg-red-500"
-                  : percentUsed >= 75
-                    ? "bg-yellow-500"
-                    : "bg-green-500"
-              }`}
-            />
-            <p className="text-xs text-muted-foreground text-right">
+            <Progress value={percentUsed} extraStyles={progressColor} />
+
+            <p className="text-right text-xs text-muted-foreground">
               {percentUsed.toFixed(1)}% used
             </p>
           </div>

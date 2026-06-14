@@ -1,23 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "./ui/button";
 import Image from "next/image";
 import { ArrowRight, Download } from "lucide-react";
 
+const IMAGES = ["/banner.jpeg", "/banner2.jpg", "/banner3.jpg", "/banner4.jpg"];
+
+const STARS = Array.from({ length: 3 });
+
 const HeroSection = () => {
   const imageRef = useRef(null);
-  const [current, setCurrent] = useState(0);
   const touchStartX = useRef(null);
-  const [isInteracting, setIsInteracting] = useState(false);
+  const interactionTimeoutRef = useRef(null);
 
-  const images = [
-    "/banner.jpeg",
-    "/banner2.jpg",
-    "/banner3.jpg",
-    "/banner4.jpg",
-  ];
+  const [current, setCurrent] = useState(0);
+  const [isInteracting, setIsInteracting] = useState(false);
 
   useEffect(() => {
     const imageElement = imageRef.current;
@@ -31,50 +30,68 @@ const HeroSection = () => {
       }
     };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
-  // Auto-rotate carousel (pauses while interacting)
   useEffect(() => {
-    if (!images || images.length <= 1) return;
-    if (isInteracting) return;
-    const id = setInterval(() => {
-      setCurrent((c) => (c + 1) % images.length);
-    }, 4000);
-    return () => clearInterval(id);
-  }, [images.length, isInteracting]);
+    if (IMAGES.length <= 1 || isInteracting) return;
 
-  // Touch handlers for swipe
-  const handleTouchStart = (e) => {
+    const id = setInterval(() => {
+      setCurrent((c) => (c + 1) % IMAGES.length);
+    }, 4000);
+
+    return () => clearInterval(id);
+  }, [isInteracting]);
+
+  useEffect(() => {
+    return () => {
+      if (interactionTimeoutRef.current) {
+        clearTimeout(interactionTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleTouchStart = useCallback((e) => {
     touchStartX.current = e.touches?.[0]?.clientX ?? null;
     setIsInteracting(true);
-  };
+  }, []);
 
-  const handleTouchEnd = (e) => {
+  const handleTouchEnd = useCallback((e) => {
     const endX = e.changedTouches?.[0]?.clientX ?? null;
+
     if (touchStartX.current == null || endX == null) {
       setIsInteracting(false);
       return;
     }
+
     const delta = endX - touchStartX.current;
-    const threshold = 50; // px
+    const threshold = 50;
+
     if (delta > threshold) {
-      setCurrent((c) => (c - 1 + images.length) % images.length);
+      setCurrent((c) => (c - 1 + IMAGES.length) % IMAGES.length);
     } else if (delta < -threshold) {
-      setCurrent((c) => (c + 1) % images.length);
+      setCurrent((c) => (c + 1) % IMAGES.length);
     }
+
     touchStartX.current = null;
-    // small delay before re-enabling auto-rotate for smoother UX
-    setTimeout(() => setIsInteracting(false), 300);
-  };
+
+    if (interactionTimeoutRef.current) {
+      clearTimeout(interactionTimeoutRef.current);
+    }
+
+    interactionTimeoutRef.current = setTimeout(() => {
+      setIsInteracting(false);
+    }, 300);
+  }, []);
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-r from-indigo-100 via-purple-50 to-indigo-50">
       <div className="container mx-auto px-4 pt-28 pb-24 text-center">
-        {/* Compact Single-Line Trust Badge */}
         <div className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-indigo-100 border border-indigo-300 text-indigo-700 shadow-sm text-xs">
-          {/* Avatar Stack (3 only) */}
           <div className="flex -space-x-2">
             <img
               src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=200"
@@ -93,43 +110,36 @@ const HeroSection = () => {
             />
           </div>
 
-          {/* Stars (3 only) */}
           <div className="flex -space-x-1">
-            {Array(3)
-              .fill(0)
-              .map((_, i) => (
-                <svg
-                  key={i}
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  className="text-amber-500"
-                  aria-hidden="true"
-                >
-                  <path d="M12 .587l3.668 7.431 8.2 1.193-5.934 5.782 1.4 8.162L12 18.896 5.666 23.155l1.4-8.162L1.132 9.211l8.2-1.193L12 .587z" />
-                </svg>
-              ))}
+            {STARS.map((_, i) => (
+              <svg
+                key={i}
+                xmlns="http://www.w3.org/2000/svg"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="text-amber-500"
+                aria-hidden="true"
+              >
+                <path d="M12 .587l3.668 7.431 8.2 1.193-5.934 5.782 1.4 8.162L12 18.896 5.666 23.155l1.4-8.162L1.132 9.211l8.2-1.193L12 .587z" />
+              </svg>
+            ))}
           </div>
 
-          {/* Text */}
           <p className="text-xs font-medium">Trusted by 100+ users</p>
         </div>
 
-        {/* Heading */}
-        <h1 className="gradient-title  pt-3 text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 mb-6">
+        <h1 className="gradient-title pt-3 text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 mb-6">
           Manage Your Finances <br />
           <span className="gradient-title text-blue-600">Smarter with AI</span>
         </h1>
 
-        {/* Description */}
         <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-6">
           An AI-powered finance management platform that helps you track,
           analyze, and optimize your spending with real-time insights.
         </p>
 
-        {/* CTA Container */}
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
           <Button
             asChild
@@ -169,9 +179,7 @@ const HeroSection = () => {
           </Button>
         </div>
 
-        {/* Dashboard Preview: responsive — mobile carousel, desktop 4-col grid */}
         <div className="mt-16" ref={imageRef}>
-          {/* Mobile: centered 90vw carousel with 5% side margins */}
           <div className="md:hidden">
             <div
               className="relative overflow-hidden mx-auto w-[90vw] rounded-2xl shadow-2xl border"
@@ -184,12 +192,11 @@ const HeroSection = () => {
               <div
                 className="flex transition-transform duration-700 ease-in-out"
                 style={{
-                  width: `${images.length * 90}vw`,
+                  width: `${IMAGES.length * 90}vw`,
                   transform: `translateX(-${current * 90}vw)`,
                 }}
               >
-                
-                {images.map((src, idx) => (
+                {IMAGES.map((src, idx) => (
                   <div
                     key={src}
                     className="flex-shrink-0 w-[90vw] relative overflow-hidden"
@@ -206,9 +213,8 @@ const HeroSection = () => {
                 ))}
               </div>
 
-              {/* Mobile Dots */}
               <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-2">
-                {images.map((_, i) => (
+                {IMAGES.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => setCurrent(i)}
@@ -222,9 +228,8 @@ const HeroSection = () => {
             </div>
           </div>
 
-          {/* Desktop: premium 4-column grid (centered with side margins) */}
           <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-6 mt-6 mx-auto w-[90vw] max-w-[1400px]">
-            {images.map((src, idx) => (
+            {IMAGES.map((src, idx) => (
               <div
                 key={src}
                 className="overflow-hidden rounded-2xl border bg-white/60 backdrop-blur-sm shadow-lg transition-transform duration-300 hover:scale-105 hover:shadow-2xl transform-gpu will-change-transform"
@@ -233,6 +238,7 @@ const HeroSection = () => {
                   src={src}
                   width={600}
                   height={400}
+                  loading="lazy"
                   alt={`grid-preview-${idx}`}
                   className="w-full h-40 lg:h-48 object-cover"
                 />

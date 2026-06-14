@@ -3,20 +3,24 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
-import React, { useState } from "react";
-import { Button } from "./ui/button";
+import React, { useState, useCallback } from "react";
 import { LayoutDashboard, PenBox, Menu, X } from "lucide-react";
 
 const Header = () => {
   const [open, setOpen] = useState(false);
 
+  const toggleMenu = useCallback(() => {
+    setOpen((prev) => !prev);
+  }, []);
+
+  const closeMenu = useCallback(() => {
+    setOpen(false);
+  }, []);
+
   return (
     <header className="fixed top-0 z-50 w-full">
-      
-      {/* Gradient + glass */}
       <div className="bg-gradient-to-r from-indigo-500 to-violet-400 backdrop-blur-md">
         <nav className="mx-auto flex h-[70px] max-w-7xl items-center justify-between px-6 lg:px-12">
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <Image
               src="/logo.png"
@@ -25,11 +29,9 @@ const Header = () => {
               height={40}
               className="h-9 w-auto object-contain"
               priority
-              loading="eager"
             />
           </Link>
 
-          {/* Desktop Menu (Before Login) */}
           <SignedOut>
             <ul className="hidden md:flex items-center gap-10 text-sm text-white font-medium">
               <li>
@@ -43,16 +45,12 @@ const Header = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/about" onClick={() => setOpen(false)}>
-                  About
-                </Link>
+                <Link href="/about">About</Link>
               </li>
             </ul>
           </SignedOut>
 
-          {/* Right Section */}
           <div className="flex items-center gap-3">
-            {/* BEFORE LOGIN */}
             <SignedOut>
               <SignInButton forceRedirectUrl="/dashboard">
                 <button className="w-full px-5 py-2 text-sm font-semibold rounded-full bg-white text-indigo-700 hover:bg-white/90 transition">
@@ -61,12 +59,10 @@ const Header = () => {
               </SignInButton>
             </SignedOut>
 
-            {/* AFTER LOGIN */}
             <SignedIn>
               <Link
                 href="/dashboard"
-                className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full border border-white/30
-              bg-white/10 backdrop-blur-md text-white hover:bg-white/20 hover:border-white/50 hover:shadow-lg hover:shadow-white/10 transition-all duration-200"
+                className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full border border-white/30 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 hover:border-white/50 hover:shadow-lg hover:shadow-white/10 transition-all duration-200"
               >
                 <LayoutDashboard size={18} />
                 Dashboard
@@ -89,33 +85,32 @@ const Header = () => {
               />
             </SignedIn>
 
-            {/* Mobile Menu Button */}
             <button
-              onClick={() => setOpen(!open)}
+              onClick={toggleMenu}
               className="md:hidden text-white"
+              aria-label="Toggle menu"
             >
               {open ? <X size={28} /> : <Menu size={28} />}
             </button>
           </div>
         </nav>
 
-        {/* MOBILE MENU */}
         {open && (
           <div className="md:hidden bg-gradient-to-r from-indigo-500 to-violet-400 px-6 pb-6">
             <SignedOut>
               <ul className="flex flex-col gap-4 text-white text-sm mt-4">
                 <li>
-                  <Link href="/" onClick={() => setOpen(false)}>
+                  <Link href="/" onClick={closeMenu}>
                     Home
                   </Link>
                 </li>
                 <li>
-                  <Link href="/feature" onClick={() => setOpen(false)}>
+                  <Link href="/feature" onClick={closeMenu}>
                     Features
                   </Link>
                 </li>
                 <li>
-                  <Link href="/about" onClick={() => setOpen(false)}>
+                  <Link href="/about" onClick={closeMenu}>
                     About
                   </Link>
                 </li>
@@ -134,7 +129,7 @@ const Header = () => {
               <div className="mt-6 flex flex-col gap-3">
                 <Link
                   href="/dashboard"
-                  onClick={() => setOpen(false)}
+                  onClick={closeMenu}
                   className="flex items-center justify-center gap-2 w-full py-2 rounded-full text-white border border-white/30"
                 >
                   <LayoutDashboard size={18} />
@@ -143,7 +138,7 @@ const Header = () => {
 
                 <Link
                   href="/transaction/create"
-                  onClick={() => setOpen(false)}
+                  onClick={closeMenu}
                   className="flex items-center justify-center gap-2 w-full py-2 rounded-full bg-white text-indigo-700 font-semibold"
                 >
                   <PenBox size={18} />
