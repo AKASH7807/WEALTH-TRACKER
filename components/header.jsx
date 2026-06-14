@@ -12,6 +12,7 @@ const Header = () => {
 
   return (
     <header className="fixed top-0 z-50 w-full">
+      
       {/* Gradient + glass */}
       <div className="bg-gradient-to-r from-indigo-500 to-violet-400 backdrop-blur-md">
         <nav className="mx-auto flex h-[70px] max-w-7xl items-center justify-between px-6 lg:px-12">
