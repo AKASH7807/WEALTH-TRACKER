@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
+import { checkUser } from "@/lib/checkUser";
 import { TransactionStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -16,11 +16,8 @@ const serializeTransaction = (obj) => {
 // Update the default account
 export async function updateDefaultAccount(accountId) {
   try {
-    const { userId } = await auth();
-    if (!userId) throw new Error("Unauthorized");
-
-    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-    if (!user) throw new Error("user not found");
+    const user = await checkUser();
+    if (!user) throw new Error("User not found");
 
     // Unset previous default and set new default in parallel for speed
     await Promise.all([
@@ -49,11 +46,8 @@ export async function updateDefaultAccount(accountId) {
 // Get an account along with its transactions
 export async function getAccountWithTransaction(accountId) {
   try {
-    const { userId } = await auth();
-    if (!userId) throw new Error("Unauthorized");
-
-    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-    if (!user) throw new Error("user not found");
+    const user = await checkUser();
+    if (!user) throw new Error("User not found");
 
     const account = await db.account.findUnique({
       where: { id: accountId, userId: user.id },
@@ -77,10 +71,7 @@ export async function getAccountWithTransaction(accountId) {
 // Bulk delete transactions
 export async function bulkDeleteTransactions(transactionIds) {
   try {
-    const { userId } = await auth();
-    if (!userId) throw new Error("Unauthorized");
-
-    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+    const user = await checkUser();
     if (!user) throw new Error("User not found");
 
     // Fetch transactions once

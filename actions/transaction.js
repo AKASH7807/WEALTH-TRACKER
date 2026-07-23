@@ -1,6 +1,7 @@
 "use server";
 
 import {auth} from "@clerk/nextjs/server";
+import {checkUser} from "@/lib/checkUser";
 import {db} from "@/lib/prisma";
 import {revalidatePath} from "next/cache";
 import {GoogleGenerativeAI} from "@google/generative-ai";
@@ -49,12 +50,7 @@ export async function createTransaction(data) {
             throw new Error("Request blocked");
         }
 
-        const user = await db.user.findUnique({
-            where: {
-                clerkUserId: userId
-            }
-        });
-
+        const user = await checkUser();
         if (! user) {
             throw new Error("User not found");
         }
@@ -109,18 +105,7 @@ export async function createTransaction(data) {
 
 // get Transaction Data
 export async function getTransaction(id) {
-    const {userId} = await auth();
-    if (!userId) 
-        throw new Error("Unauthorized");
-    
-
-
-    const user = await db.user.findUnique({
-        where: {
-            clerkUserId: userId
-        }
-    });
-
+    const user = await checkUser();
     if (! user) 
         throw new Error("User not found");
     
@@ -143,18 +128,7 @@ export async function getTransaction(id) {
 
 export async function updateTransaction(id, data) {
     try {
-        const {userId} = await auth();
-        if (!userId) 
-            throw new Error("Unauthorized");
-        
-
-
-        const user = await db.user.findUnique({
-            where: {
-                clerkUserId: userId
-            }
-        });
-
+        const user = await checkUser();
         if (! user) 
             throw new Error("User not found");
         
@@ -225,18 +199,7 @@ export async function updateTransaction(id, data) {
 // Get User Transactions
 export async function getUserTransactions(query = {}) {
     try {
-        const {userId} = await auth();
-        if (!userId) 
-            throw new Error("Unauthorized");
-        
-
-
-        const user = await db.user.findUnique({
-            where: {
-                clerkUserId: userId
-            }
-        });
-
+        const user = await checkUser();
         if (! user) {
             throw new Error("User not found");
         }
