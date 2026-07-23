@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { checkUser } from "@/lib/checkUser";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache } from "next/cache";
 
 // Safe serializer to prevent crashes on null/0
 const serializeTransaction = (obj) => ({
@@ -57,35 +57,49 @@ export async function createAccount(data) {
 }
 
 export async function getUserAccounts() {
+  const user = await checkUser();
+  if (!user) throw new Error("User not found");
+
+  const getCachedAccounts = unstable_cache(
+    async (userId) => {
+      const accounts = await db.account.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        include: {
+          _count: { select: { transactions: true } },
+        },
+      });
+      return accounts.map(serializeTransaction);
+    },
+    ["user-accounts"],
+    { revalidate: 30, tags: [`accounts-${user.id}`] }
+  );
+
   try {
-    const user = await checkUser();
-    if (!user) throw new Error("User not found");
-
-    const accounts = await db.account.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-      include: {
-        _count: { select: { transactions: true } },
-      },
-    });
-
-    return accounts.map(serializeTransaction);
+    return await getCachedAccounts(user.id);
   } catch (error) {
     throw new Error(error.message);
   }
 }
 
 export async function getDashboardData() {
+  const user = await checkUser();
+  if (!user) throw new Error("User not found");
+
+  const getCachedTransactions = unstable_cache(
+    async (userId) => {
+      const transactions = await db.transaction.findMany({
+        where: { userId },
+        orderBy: { date: "desc" },
+      });
+      return transactions.map(serializeTransaction);
+    },
+    ["dashboard-transactions"],
+    { revalidate: 30, tags: [`transactions-${user.id}`] }
+  );
+
   try {
-    const user = await checkUser();
-    if (!user) throw new Error("User not found");
-
-    const transactions = await db.transaction.findMany({
-      where: { userId: user.id },
-      orderBy: { date: "desc" },
-    });
-
-    return transactions.map(serializeTransaction);
+    return await getCachedTransactions(user.id);
   } catch (error) {
     throw new Error(error.message);
   }

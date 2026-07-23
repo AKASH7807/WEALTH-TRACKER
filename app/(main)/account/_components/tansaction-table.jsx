@@ -65,6 +65,12 @@ const RECURRING_INTERVALS = {
 
 export function TransactionTable({transactions}) {
     const [selectedIds, setSelectedIds] = useState([]);
+    const [isMounted, setIsMounted] = useState(false);
+    
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     const [sortConfig, setSortConfig] = useState({field: "date", direction: "desc"});
     const [searchTerm, setSearchTerm] = useState("");
     const [typeFilter, setTypeFilter] = useState("");
@@ -336,6 +342,8 @@ export function TransactionTable({transactions}) {
     };
 
     // JSX MAIN
+    if (!isMounted) return null;
+    
     return (
         <div className="space-y-4">
             {

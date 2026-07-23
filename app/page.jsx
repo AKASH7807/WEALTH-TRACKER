@@ -1,3 +1,5 @@
+"use client";
+
 import HeroSection from "@/components/hero";
 import MonthlyFinanceInsight from "@/components/MonthlyFinanceInsight";
 import { Button } from "@/components/ui/button";

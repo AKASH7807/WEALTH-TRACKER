@@ -2,52 +2,55 @@
 
 import { db } from "@/lib/prisma";
 import { checkUser } from "@/lib/checkUser";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache } from "next/cache";
 
 export async function getCurrentBudget(accountId) {
-  try {
-    const user = await checkUser();
-    if (!user) throw new Error("User not found");
+  const user = await checkUser();
+  if (!user) throw new Error("User not found");
 
-    const budget = await db.budget.findFirst({
-      where: {
-        userId: user.id,
-      },
-    });
+  const getCachedBudget = unstable_cache(
+    async (userId, accId) => {
+      const budget = await db.budget.findFirst({
+        where: { userId },
+      });
 
-    const currentDate = new Date();
-    const startOfMonth = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth(),
-      1
-    );
-    const endOfMonth = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth() + 1,
-      0
-    );
+      const currentDate = new Date();
+      const startOfMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        1
+      );
+      const endOfMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        0
+      );
 
-    const expenses = await db.transaction.aggregate({
-      where: {
-        userId: user.id,
-        type: "EXPENSE",
-        date: {
-          gte: startOfMonth,
-          lte: endOfMonth,
+      const expenses = await db.transaction.aggregate({
+        where: {
+          userId,
+          type: "EXPENSE",
+          date: { gte: startOfMonth, lte: endOfMonth },
+          accountId: accId,
         },
-        accountId,
-      },
-      _sum: {
-        amount: true,
-      },
-    });
+        _sum: { amount: true },
+      });
 
-    return {
-      budget: budget ? { ...budget, amount: budget.amount.toNumber() } : null,
-      currentExpenses: expenses._sum.amount
-        ? expenses._sum.amount.toNumber()
-        : 0,
-    };
+      return {
+        budget: budget
+          ? { ...budget, amount: budget.amount.toNumber() }
+          : null,
+        currentExpenses: expenses._sum.amount
+          ? expenses._sum.amount.toNumber()
+          : 0,
+      };
+    },
+    ["current-budget"],
+    { revalidate: 30, tags: [`budget-${user.id}`] }
+  );
+
+  try {
+    return await getCachedBudget(user.id, accountId);
   } catch (error) {
     throw error;
   }

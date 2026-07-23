@@ -1,18 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -20,6 +12,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+// Lazy-load all recharts primitives — keeps initial bundle lean
+const BarChart = dynamic(
+  () => import("recharts").then((m) => m.BarChart),
+  { ssr: false }
+);
+const Bar = dynamic(
+  () => import("recharts").then((m) => m.Bar),
+  { ssr: false }
+);
+const XAxis = dynamic(
+  () => import("recharts").then((m) => m.XAxis),
+  { ssr: false }
+);
+const YAxis = dynamic(
+  () => import("recharts").then((m) => m.YAxis),
+  { ssr: false }
+);
+const CartesianGrid = dynamic(
+  () => import("recharts").then((m) => m.CartesianGrid),
+  { ssr: false }
+);
+const Tooltip = dynamic(
+  () => import("recharts").then((m) => m.Tooltip),
+  { ssr: false }
+);
+const Legend = dynamic(
+  () => import("recharts").then((m) => m.Legend),
+  { ssr: false }
+);
+const ResponsiveContainer = dynamic(
+  () => import("recharts").then((m) => m.ResponsiveContainer),
+  { ssr: false }
+);
 
 const DATE_RANGES = {
   "7D": { label: "Last 7 Days", days: 7 },
@@ -31,6 +57,11 @@ const DATE_RANGES = {
 
 export function AccountChart({ transactions }) {
   const [dateRange, setDateRange] = useState("1M");
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const filteredData = useMemo(() => {
     const range = DATE_RANGES[dateRange];
@@ -39,12 +70,11 @@ export function AccountChart({ transactions }) {
       ? startOfDay(subDays(now, range.days))
       : startOfDay(new Date(0));
 
-    // Filter transactions within date range
     const filtered = transactions.filter(
-      (t) => new Date(t.date) >= startDate && new Date(t.date) <= endOfDay(now)
+      (t) =>
+        new Date(t.date) >= startDate && new Date(t.date) <= endOfDay(now)
     );
 
-    // Group transactions by date
     const grouped = filtered.reduce((acc, transaction) => {
       const date = format(new Date(transaction.date), "MMM dd");
       if (!acc[date]) {
@@ -58,13 +88,11 @@ export function AccountChart({ transactions }) {
       return acc;
     }, {});
 
-    // Convert to array and sort by date
     return Object.values(grouped).sort(
       (a, b) => new Date(a.date) - new Date(b.date)
     );
   }, [transactions, dateRange]);
 
-  // Calculate totals for the selected period
   const totals = useMemo(() => {
     return filteredData.reduce(
       (acc, day) => ({
@@ -74,6 +102,8 @@ export function AccountChart({ transactions }) {
       { income: 0, expense: 0 }
     );
   }, [filteredData]);
+
+  if (!isMounted) return null;
 
   return (
     <Card>
@@ -121,8 +151,13 @@ export function AccountChart({ transactions }) {
             </p>
           </div>
         </div>
+
         <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            fallback={<Skeleton className="h-[300px] w-full rounded-md" />}
+          >
             <BarChart
               data={filteredData}
               margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
@@ -168,4 +203,5 @@ export function AccountChart({ transactions }) {
     </Card>
   );
 }
+
 export default AccountChart;

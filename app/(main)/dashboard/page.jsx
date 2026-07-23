@@ -7,24 +7,28 @@ import AccountCard from "./_components/account-card";
 import { getCurrentBudget } from "@/actions/budget";
 import BudgetProgress from "./_components/budget-progress";
 import { DashboardOverview } from "./_components/transaction-overview";
+import DashboardSkeleton from "./_components/dashboard-skeleton";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-async function DashboardPage() {
-  const accounts = await getUserAccounts();
+// Async sub-component: fetches and renders budget + overview + accounts
+async function DashboardContent() {
+  // Fetch all data in parallel — eliminates sequential waterfall
+  const [accounts, transactions] = await Promise.all([
+    getUserAccounts(),
+    getDashboardData(),
+  ]);
 
   const defaultAccount = accounts?.find((account) => account.isDefault);
 
-  let budgetData = null;
-  if (defaultAccount) {
-    budgetData = await getCurrentBudget(defaultAccount.id);
-  }
-
-  const transactions = await getDashboardData();
+  // Only fetch budget if there's a default account (conditional, but fast)
+  const budgetData = defaultAccount
+    ? await getCurrentBudget(defaultAccount.id)
+    : null;
 
   return (
     <div className="space-y-8">
-      {/* Budget Progress  */}
+      {/* Budget Progress */}
       {defaultAccount && (
         <BudgetProgress
           initialBudget={budgetData?.budget}
@@ -32,15 +36,13 @@ async function DashboardPage() {
         />
       )}
 
-      {/* overview  */}
-      <Suspense fallback={"Loading Overview..."}>
-        <DashboardOverview
-          accounts={accounts}
-          transactions={transactions || []}
-        />
-      </Suspense>
+      {/* Overview */}
+      <DashboardOverview
+        accounts={accounts}
+        transactions={transactions || []}
+      />
 
-      {/* Accounts Grid  */}
+      {/* Accounts Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <CreateAccountDrawer>
           <Card className="hover:shadow-md transaction-shadow cursor-pointer border-dashed">
@@ -52,12 +54,18 @@ async function DashboardPage() {
         </CreateAccountDrawer>
 
         {accounts.length > 0 &&
-          accounts?.map((account) => {
-            return <AccountCard key={account.id} account={account} />;
-          })}
+          accounts.map((account) => (
+            <AccountCard key={account.id} account={account} />
+          ))}
       </div>
     </div>
   );
 }
 
-export default DashboardPage;
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DashboardContent />
+    </Suspense>
+  );
+}
