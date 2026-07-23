@@ -81,11 +81,16 @@ export function AddTransactionForm({
     data: transactionResult,
   } = useFetch(editMode ? updateTransaction : createTransaction);
 
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => setIsMounted(true), []);
+
   useEffect(() => {
     if (!editMode && !initialData) {
       setValue("date", new Date());
     }
   }, [editMode, initialData, setValue]);
+
+  if (!isMounted) return null;
 
   const onSubmit = async (data) => {
     const formData = { ...data, amount: parseFloat(data.amount) };

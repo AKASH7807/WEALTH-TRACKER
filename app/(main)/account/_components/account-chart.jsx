@@ -13,39 +13,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Lazy-load all recharts primitives — keeps initial bundle lean
-const BarChart = dynamic(
-  () => import("recharts").then((m) => m.BarChart),
-  { ssr: false }
-);
-const Bar = dynamic(
-  () => import("recharts").then((m) => m.Bar),
-  { ssr: false }
-);
-const XAxis = dynamic(
-  () => import("recharts").then((m) => m.XAxis),
-  { ssr: false }
-);
-const YAxis = dynamic(
-  () => import("recharts").then((m) => m.YAxis),
-  { ssr: false }
-);
-const CartesianGrid = dynamic(
-  () => import("recharts").then((m) => m.CartesianGrid),
-  { ssr: false }
-);
-const Tooltip = dynamic(
-  () => import("recharts").then((m) => m.Tooltip),
-  { ssr: false }
-);
-const Legend = dynamic(
-  () => import("recharts").then((m) => m.Legend),
-  { ssr: false }
-);
-const ResponsiveContainer = dynamic(
-  () => import("recharts").then((m) => m.ResponsiveContainer),
-  { ssr: false }
-);
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 const DATE_RANGES = {
   "7D": { label: "Last 7 Days", days: 7 },

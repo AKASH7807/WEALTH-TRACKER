@@ -16,31 +16,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-// Lazy-load the entire Recharts pie chart — not needed until the chart section renders
-const PieChart = dynamic(
-  () => import("recharts").then((m) => m.PieChart),
-  { ssr: false }
-);
-const Pie = dynamic(
-  () => import("recharts").then((m) => m.Pie),
-  { ssr: false }
-);
-const Cell = dynamic(
-  () => import("recharts").then((m) => m.Cell),
-  { ssr: false }
-);
-const ResponsiveContainer = dynamic(
-  () => import("recharts").then((m) => m.ResponsiveContainer),
-  { ssr: false }
-);
-const Tooltip = dynamic(
-  () => import("recharts").then((m) => m.Tooltip),
-  { ssr: false }
-);
-const Legend = dynamic(
-  () => import("recharts").then((m) => m.Legend),
-  { ssr: false }
-);
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 const COLORS = [
   "#FF6B6B",
