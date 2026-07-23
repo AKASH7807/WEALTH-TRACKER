@@ -90,8 +90,6 @@ export function AddTransactionForm({
     }
   }, [editMode, initialData, setValue]);
 
-  if (!isMounted) return null;
-
   const onSubmit = async (data) => {
     const formData = { ...data, amount: parseFloat(data.amount) };
     if (editMode) await transactionFn(editId, formData);
@@ -129,6 +127,8 @@ export function AddTransactionForm({
     () => categories.filter((category) => category.type === type),
     [categories, type],
   );
+
+  if (!isMounted) return null;
 
   return (
     <form
