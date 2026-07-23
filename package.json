@@ -11,7 +11,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@arcjet/next": "^1.0.0-beta.4",
+    "@arcjet/next": "^1.9.1",
     "@clerk/nextjs": "^6.12.5",
     "@google-cloud/vision": "^5.3.4",
     "@google/generative-ai": "^0.24.0",
