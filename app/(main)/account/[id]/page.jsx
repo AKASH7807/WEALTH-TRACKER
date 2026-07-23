@@ -17,6 +17,10 @@ const AccountPage = async ({params}) => {
         ...account
     } = accountData;
 
+    const netTransactionBalance = transactions.reduce((acc, t) => {
+        return t.type === "INCOME" ? acc + t.amount : acc - t.amount;
+    }, 0);
+
     return (<div className="space-y-8 px-5">
         <div className="flex gap-4 items-end justify-between">
             <div>
@@ -32,7 +36,7 @@ const AccountPage = async ({params}) => {
             </div>
             <div className="text-right pb-2">
                 <div className="text-xl sm:text-2xl font-bold">
-                    {`₹${parseFloat(account.balance).toFixed(2)}`} </div>
+                    {`₹${netTransactionBalance.toFixed(2)}`} </div>
                 <p className="text-sm text-muted-foreground"> {
                     account._count.transactions
                 }
