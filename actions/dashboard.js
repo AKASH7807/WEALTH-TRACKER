@@ -4,16 +4,22 @@ import { db } from "@/lib/prisma";
 import { checkUser } from "@/lib/checkUser";
 import { revalidatePath, unstable_cache } from "next/cache";
 
+const serializeAmount = (val) => {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === "number") return val;
+  if (typeof val?.toNumber === "function") return val.toNumber();
+  return Number(val) || 0;
+};
+
 // Safe serializer to prevent crashes on null/0
-const serializeTransaction = (obj) => ({
-  ...obj,
-  balance:
-    obj.balance !== null && obj.balance !== undefined
-      ? obj.balance.toNumber()
-      : 0,
-  amount:
-    obj.amount !== null && obj.amount !== undefined ? obj.amount.toNumber() : 0,
-});
+const serializeTransaction = (obj) => {
+  if (!obj) return obj;
+  return {
+    ...obj,
+    balance: serializeAmount(obj.balance),
+    amount: serializeAmount(obj.amount),
+  };
+};
 
 export async function createAccount(data) {
   try {
@@ -103,4 +109,61 @@ export async function getDashboardData() {
   } catch (error) {
     throw new Error(error.message);
   }
+}
+
+/**
+ * Ultra-fast consolidated data fetcher for Dashboard.
+ * Fetches accounts, transactions, and budget in parallel and calculates
+ * current month budget expenses directly in memory (zero redundant DB queries).
+ */
+export async function getCompleteDashboardData() {
+  const user = await checkUser();
+  if (!user) throw new Error("User not found");
+
+  const [accounts, transactions, budget] = await Promise.all([
+    db.account.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: { select: { transactions: true } },
+      },
+    }),
+    db.transaction.findMany({
+      where: { userId: user.id },
+      orderBy: { date: "desc" },
+    }),
+    db.budget.findFirst({
+      where: { userId: user.id },
+    }),
+  ]);
+
+  const defaultAccount = accounts.find((a) => a.isDefault);
+  let currentExpenses = 0;
+
+  if (defaultAccount) {
+    const currentDate = new Date();
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+    currentExpenses = transactions
+      .filter(
+        (t) =>
+          t.accountId === defaultAccount.id &&
+          t.type === "EXPENSE" &&
+          new Date(t.date) >= startOfMonth &&
+          new Date(t.date) <= endOfMonth
+      )
+      .reduce((sum, t) => sum + serializeAmount(t.amount), 0);
+  }
+
+  return {
+    accounts: accounts.map(serializeTransaction),
+    transactions: transactions.map(serializeTransaction),
+    budgetData: defaultAccount
+      ? {
+          budget: budget ? { ...budget, amount: serializeAmount(budget.amount) } : null,
+          currentExpenses,
+        }
+      : null,
+  };
 }

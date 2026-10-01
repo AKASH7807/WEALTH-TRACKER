@@ -4,6 +4,13 @@ import { db } from "@/lib/prisma";
 import { checkUser } from "@/lib/checkUser";
 import { revalidatePath, unstable_cache } from "next/cache";
 
+const serializeAmount = (val) => {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === "number") return val;
+  if (typeof val?.toNumber === "function") return val.toNumber();
+  return Number(val) || 0;
+};
+
 export async function getCurrentBudget(accountId) {
   const user = await checkUser();
   if (!user) throw new Error("User not found");
@@ -38,11 +45,9 @@ export async function getCurrentBudget(accountId) {
 
       return {
         budget: budget
-          ? { ...budget, amount: budget.amount.toNumber() }
+          ? { ...budget, amount: serializeAmount(budget.amount) }
           : null,
-        currentExpenses: expenses._sum.amount
-          ? expenses._sum.amount.toNumber()
-          : 0,
+        currentExpenses: serializeAmount(expenses._sum.amount),
       };
     },
     ["current-budget"],
@@ -61,23 +66,26 @@ export async function updateBudget(amount) {
     const user = await checkUser();
     if (!user) throw new Error("User not found");
 
+    const amountFloat = parseFloat(amount);
+    if (isNaN(amountFloat)) throw new Error("Invalid budget amount");
+
     const budget = await db.budget.upsert({
       where: {
         userId: user.id,
       },
       update: {
-        amount,
+        amount: amountFloat,
       },
       create: {
         userId: user.id,
-        amount,
+        amount: amountFloat,
       },
     });
 
     revalidatePath("/dashboard");
     return {
       success: true,
-      data: { ...budget, amount: budget.amount.toNumber() },
+      data: { ...budget, amount: serializeAmount(budget.amount) },
     };
   } catch (error) {
     return { success: false, error: error.message };

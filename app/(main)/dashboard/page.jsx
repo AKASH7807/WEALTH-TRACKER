@@ -1,31 +1,21 @@
-import { getDashboardData, getUserAccounts } from "@/actions/dashboard";
+import { getCompleteDashboardData } from "@/actions/dashboard";
 import CreateAccountDrawer from "@/components/create-account-drawer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus } from "lucide-react";
 import React, { Suspense } from "react";
 import AccountCard from "./_components/account-card";
-import { getCurrentBudget } from "@/actions/budget";
 import BudgetProgress from "./_components/budget-progress";
-import dynamic from "next/dynamic";
-const DashboardOverview = dynamic(() => import("./_components/transaction-overview").then(mod => mod.DashboardOverview), { ssr: false });
+import { DashboardOverview } from "./_components/transaction-overview";
 import DashboardSkeleton from "./_components/dashboard-skeleton";
 
 export const dynamic = "force-dynamic";
 
-// Async sub-component: fetches and renders budget + overview + accounts
+// Async sub-component: fetches accounts, transactions, and budget in a single parallel batch
 async function DashboardContent() {
-  // Fetch all data in parallel — eliminates sequential waterfall
-  const [accounts, transactions] = await Promise.all([
-    getUserAccounts(),
-    getDashboardData(),
-  ]);
+  const { accounts, transactions, budgetData } =
+    await getCompleteDashboardData();
 
   const defaultAccount = accounts?.find((account) => account.isDefault);
-
-  // Only fetch budget if there's a default account (conditional, but fast)
-  const budgetData = defaultAccount
-    ? await getCurrentBudget(defaultAccount.id)
-    : null;
 
   return (
     <div className="space-y-8">

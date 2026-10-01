@@ -1,6 +1,6 @@
 "use server";
 
-import { db } from "@/lib/prisma";
+import { db, runDbTransaction } from "@/lib/prisma";
 import { subDays } from "date-fns";
 
 const ACCOUNT_ID = "425ebd2f-2dfb-41ca-894e-91c567b2f63b";
@@ -73,7 +73,7 @@ export async function seedTransactions() {
     }
 
     // Insert transactions and update balance in a single transaction
-    await db.$transaction(async (tx) => {
+    await runDbTransaction(async (tx) => {
       await tx.transaction.deleteMany({ where: { accountId: ACCOUNT_ID } });
       await tx.transaction.createMany({ data: transactions });
       await tx.account.update({

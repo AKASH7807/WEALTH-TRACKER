@@ -1,15 +1,26 @@
 "use server";
 
-import { db } from "@/lib/prisma";
+import { db, runDbTransaction } from "@/lib/prisma";
 import { checkUser } from "@/lib/checkUser";
-import { TransactionStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
-// Helper to serialize Decimal fields to numbers
+// Helper to serialize Decimal / Float fields safely to numbers
+const serializeAmount = (val) => {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === "number") return val;
+  if (typeof val?.toNumber === "function") return val.toNumber();
+  return Number(val) || 0;
+};
+
 const serializeTransaction = (obj) => {
+  if (!obj) return obj;
   const serialized = { ...obj };
-  if (obj.balance) serialized.balance = obj.balance.toNumber();
-  if (obj.amount) serialized.amount = obj.amount.toNumber();
+  if (obj.balance !== undefined && obj.balance !== null) {
+    serialized.balance = serializeAmount(obj.balance);
+  }
+  if (obj.amount !== undefined && obj.amount !== null) {
+    serialized.amount = serializeAmount(obj.amount);
+  }
   return serialized;
 };
 
@@ -81,13 +92,14 @@ export async function bulkDeleteTransactions(transactionIds) {
 
     // Compute balance changes per account
     const accountBalanceChanges = transactions.reduce((acc, tx) => {
-      const change = tx.type === "EXPENSE" ? tx.amount : -tx.amount;
+      const txAmount = serializeAmount(tx.amount);
+      const change = tx.type === "EXPENSE" ? txAmount : -txAmount;
       acc[tx.accountId] = (acc[tx.accountId] || 0) + change;
       return acc;
     }, {});
 
-    // Delete transactions and update balances in a single transaction
-    await db.$transaction(async (tx) => {
+    // Delete transactions and update balances in a transaction
+    await runDbTransaction(async (tx) => {
       await tx.transaction.deleteMany({
         where: { id: { in: transactionIds }, userId: user.id },
       });

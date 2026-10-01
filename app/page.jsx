@@ -76,7 +76,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* how it works  */}
+      {/* how it works */}
       <section className="py-20 bg-blue-50 ">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-16">How It Works</h2>
@@ -94,7 +94,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* tesimonial section  */}
+      {/* testimonial section */}
       <section className="py-20 ">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">
@@ -128,7 +128,7 @@ export default function Home() {
       </section>
 
       {/* Expense Calculator */}
-      <section className=" w-[95%] sm:w-full max-w-5xl mx-auto my-6 sm:my-8 px-4 sm:px-6 lg:px-8 py-5 sm:py-6 bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-2xl shadow-lg border border-indigo-200 transition-all duration-300 hover:shadow-xl">
+      <section className="w-[95%] sm:w-full max-w-5xl mx-auto my-6 sm:my-8 px-4 sm:px-6 lg:px-8 py-5 sm:py-6 bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-2xl shadow-lg border border-indigo-200 transition-all duration-300 hover:shadow-xl">
         <h2 className="text-2xl sm:text-4xl font-extrabold mb-3 sm:mb-4 text-center text-indigo-700">
           Your Monthly Finance Overview
         </h2>
@@ -136,7 +136,7 @@ export default function Home() {
           Enter your monthly income and expenses to get instant insights and
           suggestions.
         </p>
-        <div className="rounded-xl p-3 sm:p-6 md:p-8  transition-all">
+        <div className="rounded-xl p-3 sm:p-6 md:p-8 transition-all">
           <MonthlyFinanceInsight />
         </div>
       </section>
@@ -146,26 +146,31 @@ export default function Home() {
         <div className="max-w-6xl mx-auto rounded-3xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 px-8 py-16 text-center text-white shadow-xl">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
             <div className="flex flex-nowrap -space-x-3">
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=200"
                 className="w-8 h-8 rounded-full border border-white/40 object-cover"
-                alt=""
+                alt="User avatar 1"
+                width={32}
+                height={32}
               />
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"
                 className="w-8 h-8 rounded-full border border-white/40 object-cover"
-                alt=""
+                alt="User avatar 2"
+                width={32}
+                height={32}
               />
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=200"
                 className="w-8 h-8 rounded-full border border-white/40 object-cover"
-                alt=""
+                alt="User avatar 3"
+                width={32}
+                height={32}
               />
             </div>
 
             <p className="text-sm text-indigo-100">
-              Trusted by <span className="font-medium text-white">100+</span>{" "}
-              users
+              Trusted by <span className="font-medium text-white">100+</span> users
             </p>
           </div>
           <h2 className="text-3xl md:text-4xl font-semibold leading-tight max-w-2xl mx-auto">
@@ -182,7 +187,7 @@ export default function Home() {
             <Link href="/dashboard" prefetch={true}>
               <Button
                 size="lg"
-                className="bg-white text-indigo-600 hover:bg-indigo-50 rounded-full px-10 shadow-md"
+                className="bg-white text-indigo-600 hover:bg-indigo-50 rounded-full px-10 shadow-md font-medium"
               >
                 Start Free Trial
               </Button>

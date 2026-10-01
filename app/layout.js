@@ -1,20 +1,57 @@
 import "./globals.css";
 import "./font.css";
 
+import { Outfit, Josefin_Sans, Lexend } from "next/font/google";
 import Header from "@/components/header";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
+import NextTopLoader from "nextjs-toploader";
+import Link from "next/link";
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-outfit",
+});
+
+const josefinSans = Josefin_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-josefin",
+});
+
+const lexend = Lexend({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-lexend",
+});
 
 export const metadata = {
-  title: "wealth",
+  title: "Wealth - Financial Management Platform",
   description: "WealthTrack Simplifying Your Financial Path",
 };
 
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
-      <html lang="en">
-        <body className="flex min-h-screen flex-col">
+      <html
+        lang="en"
+        className={`${outfit.variable} ${josefinSans.variable} ${lexend.variable}`}
+      >
+        <body className="flex min-h-screen flex-col font-sans antialiased">
+          {/* Top progress bar for instant navigation feedback */}
+          <NextTopLoader
+            color="#6366f1"
+            initialPosition={0.08}
+            crawlSpeed={200}
+            height={3}
+            crawl={true}
+            showSpinner={false}
+            easing="ease"
+            speed={200}
+            shadow="0 0 10px #6366f1,0 0 5px #a855f7"
+          />
+
           {/* Header */}
           <Header />
 
@@ -40,24 +77,27 @@ export default function RootLayout({ children }) {
 
                 {/* Links */}
                 <div className="flex items-center gap-6 text-sm text-gray-700">
-                  <a
+                  <Link
                     href="/about"
+                    prefetch={true}
                     className="hover:text-indigo-600 transition-colors duration-200"
                   >
                     About
-                  </a>
-                  <a
+                  </Link>
+                  <Link
                     href="/feature"
+                    prefetch={true}
                     className="hover:text-indigo-600 transition-colors duration-200"
                   >
                     Features
-                  </a>
-                  <a
-                    href="#"
+                  </Link>
+                  <Link
+                    href="/dashboard"
+                    prefetch={true}
                     className="hover:text-indigo-600 transition-colors duration-200"
                   >
-                    Support
-                  </a>
+                    Dashboard
+                  </Link>
                 </div>
 
                 {/* Copyright */}

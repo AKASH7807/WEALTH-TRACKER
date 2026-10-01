@@ -2,7 +2,7 @@
 
 import {auth} from "@clerk/nextjs/server";
 import {checkUser} from "@/lib/checkUser";
-import {db} from "@/lib/prisma";
+import {db, runDbTransaction} from "@/lib/prisma";
 import {revalidatePath} from "next/cache";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import aj from "@/lib/arcjet";
@@ -10,10 +10,14 @@ import {request} from "@arcjet/next";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-const serializeAmount = (obj) => ({
-    ...obj,
-    amount: obj.amount.toNumber()
-});
+const serializeAmount = (obj) => {
+    if (!obj) return obj;
+    const num = obj.amount;
+    return {
+        ...obj,
+        amount: typeof num === "number" ? num : (num?.toNumber ? num.toNumber() : Number(num || 0))
+    };
+};
 
 // Create Transaction
 export async function createTransaction(data) {
@@ -21,8 +25,6 @@ export async function createTransaction(data) {
         const {userId} = await auth();
         if (!userId) 
             throw new Error("Unauthorized");
-        
-
 
         // Get request data for ArcJet
         const req = await request();
@@ -51,7 +53,7 @@ export async function createTransaction(data) {
         }
 
         const user = await checkUser();
-        if (! user) {
+        if (!user) {
             throw new Error("User not found");
         }
 
@@ -62,19 +64,24 @@ export async function createTransaction(data) {
             }
         });
 
-        if (! account) {
+        if (!account) {
             throw new Error("Account not found");
         }
 
+        const currentBalance = typeof account.balance === "number" ? account.balance : (account.balance?.toNumber ? account.balance.toNumber() : Number(account.balance || 0));
+        const txAmount = parseFloat(data.amount);
+        if (isNaN(txAmount)) throw new Error("Invalid transaction amount");
+
         // Calculate new balance
-        const balanceChange = data.type === "EXPENSE" ? - data.amount : data.amount;
-        const newBalance = account.balance.toNumber() + balanceChange;
+        const balanceChange = data.type === "EXPENSE" ? -txAmount : txAmount;
+        const newBalance = currentBalance + balanceChange;
 
         // Create transaction and update account balance
-        const transaction = await db.$transaction(async (tx) => {
+        const transaction = await runDbTransaction(async (tx) => {
             const newTransaction = await tx.transaction.create({
                 data: {
-                    ... data,
+                    ...data,
+                    amount: txAmount,
                     userId: user.id,
                     nextRecurringDate: data.isRecurring && data.recurringInterval ? calculateNextRecurringDate(data.date, data.recurringInterval) : null
                 }
@@ -93,9 +100,7 @@ export async function createTransaction(data) {
         });
 
         revalidatePath("/dashboard");
-        revalidatePath(`/account/${
-            transaction.accountId
-        }`);
+        revalidatePath(`/account/${transaction.accountId}`);
 
         return {success: true, data: serializeAmount(transaction)};
     } catch (error) {
@@ -106,10 +111,8 @@ export async function createTransaction(data) {
 // get Transaction Data
 export async function getTransaction(id) {
     const user = await checkUser();
-    if (! user) 
+    if (!user) 
         throw new Error("User not found");
-    
-
 
     const transaction = await db.transaction.findUnique({
         where: {
@@ -118,10 +121,8 @@ export async function getTransaction(id) {
         }
     });
 
-    if (! transaction) 
+    if (!transaction) 
         throw new Error("Transaction not found");
-    
-
 
     return serializeAmount(transaction);
 }
@@ -129,10 +130,8 @@ export async function getTransaction(id) {
 export async function updateTransaction(id, data) {
     try {
         const user = await checkUser();
-        if (! user) 
+        if (!user) 
             throw new Error("User not found");
-        
-
 
         // Get original transaction to calculate balance change
         const originalTransaction = await db.transaction.findUnique({
@@ -145,27 +144,28 @@ export async function updateTransaction(id, data) {
             }
         });
 
-        if (! originalTransaction) 
+        if (!originalTransaction) 
             throw new Error("Transaction not found");
-        
-
 
         // Calculate balance changes
-        const oldBalanceChange = originalTransaction.type === "EXPENSE" ? - originalTransaction.amount.toNumber() : originalTransaction.amount.toNumber();
+        const origAmount = typeof originalTransaction.amount === "number" ? originalTransaction.amount : (originalTransaction.amount?.toNumber ? originalTransaction.amount.toNumber() : Number(originalTransaction.amount || 0));
+        const newAmount = parseFloat(data.amount);
+        if (isNaN(newAmount)) throw new Error("Invalid transaction amount");
 
-        const newBalanceChange = data.type === "EXPENSE" ? - data.amount : data.amount;
-
+        const oldBalanceChange = originalTransaction.type === "EXPENSE" ? -origAmount : origAmount;
+        const newBalanceChange = data.type === "EXPENSE" ? -newAmount : newAmount;
         const netBalanceChange = newBalanceChange - oldBalanceChange;
 
         // Update transaction and account balance in a transaction
-        const transaction = await db.$transaction(async (tx) => {
+        const transaction = await runDbTransaction(async (tx) => {
             const updated = await tx.transaction.update({
                 where: {
                     id,
                     userId: user.id
                 },
                 data: {
-                    ... data,
+                    ...data,
+                    amount: newAmount,
                     nextRecurringDate: data.isRecurring && data.recurringInterval ? calculateNextRecurringDate(data.date, data.recurringInterval) : null
                 }
             });
@@ -186,9 +186,7 @@ export async function updateTransaction(id, data) {
         });
 
         revalidatePath("/dashboard");
-        revalidatePath(`/account/${
-            data.accountId
-        }`);
+        revalidatePath(`/account/${data.accountId}`);
 
         return {success: true, data: serializeAmount(transaction)};
     } catch (error) {
@@ -200,7 +198,7 @@ export async function updateTransaction(id, data) {
 export async function getUserTransactions(query = {}) {
     try {
         const user = await checkUser();
-        if (! user) {
+        if (!user) {
             throw new Error("User not found");
         }
 
@@ -217,7 +215,7 @@ export async function getUserTransactions(query = {}) {
             }
         });
 
-        return {success: true, data: transactions};
+        return {success: true, data: transactions.map(serializeAmount)};
     } catch (error) {
         throw new Error(error.message);
     }

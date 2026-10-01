@@ -233,6 +233,8 @@ const HeroSection = () => {
                   width={600}
                   height={400}
                   alt={`grid-preview-${idx}`}
+                  priority={idx < 2}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                   className="w-full h-40 lg:h-48 object-cover"
                 />
               </div>

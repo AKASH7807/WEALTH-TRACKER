@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 export default function AboutPage() {
   const aboutContent = {
     heading: "About Wealth",
@@ -48,9 +50,12 @@ export default function AboutPage() {
         {/* Image */}
         <div className="relative flex justify-center w-full md:w-auto">
           <div className="hidden sm:block size-[300px] md:size-[420px] rounded-full absolute blur-[220px] -z-10 bg-indigo-100" />
-          <img
+          <Image
             src={aboutContent.image}
             alt="Wealth ERP preview"
+            width={400}
+            height={400}
+            priority
             className="w-full max-w-xs sm:max-w-sm rounded-xl shadow-md object-cover"
           />
         </div>
