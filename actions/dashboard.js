@@ -26,16 +26,16 @@ export async function createAccount(data) {
     const user = await checkUser();
     if (!user) throw new Error("User not found");
 
-    // convert balance to float before saving
-    const balanceFloat = parseFloat(data.balance);
-    if (isNaN(balanceFloat)) throw new Error("Invalid balance amount");
+    // Default balance to 0 - no initial amount needed
+    const rawBalance = data.balance ? parseFloat(data.balance) : 0;
+    const balanceFloat = isNaN(rawBalance) ? 0 : rawBalance;
 
     // check if this is the user's first account
     const existingAccountsCount = await db.account.count({
       where: { userId: user.id },
     });
 
-    const shouldBeDefault = existingAccountsCount === 0 ? true : data.isDefault;
+    const shouldBeDefault = existingAccountsCount === 0 ? true : Boolean(data.isDefault);
 
     // if this account should be default, unset other default accounts
     if (shouldBeDefault) {
@@ -47,7 +47,8 @@ export async function createAccount(data) {
 
     const account = await db.account.create({
       data: {
-        ...data,
+        name: data.name,
+        type: data.type,
         balance: balanceFloat,
         userId: user.id,
         isDefault: shouldBeDefault,
@@ -66,26 +67,38 @@ export async function getUserAccounts() {
   const user = await checkUser();
   if (!user) throw new Error("User not found");
 
-  const getCachedAccounts = unstable_cache(
-    async (userId) => {
-      const accounts = await db.account.findMany({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-        include: {
-          _count: { select: { transactions: true } },
-        },
-      });
-      return accounts.map(serializeTransaction);
-    },
-    ["user-accounts"],
-    { revalidate: 30, tags: [`accounts-${user.id}`] }
-  );
+  const [accounts, transactions] = await Promise.all([
+    db.account.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: { select: { transactions: true } },
+      },
+    }),
+    db.transaction.findMany({
+      where: { userId: user.id },
+      select: { accountId: true, type: true, amount: true },
+    }),
+  ]);
 
-  try {
-    return await getCachedAccounts(user.id);
-  } catch (error) {
-    throw new Error(error.message);
+  const accountBalances = {};
+  for (const t of transactions) {
+    const amt = serializeAmount(t.amount);
+    const change = t.type === "EXPENSE" ? -amt : amt;
+    accountBalances[t.accountId] = (accountBalances[t.accountId] || 0) + change;
   }
+
+  return accounts.map((acc) => {
+    const serialized = serializeTransaction(acc);
+    const net =
+      accountBalances[acc.id] !== undefined
+        ? Math.round(accountBalances[acc.id] * 100) / 100
+        : 0;
+    return {
+      ...serialized,
+      balance: net,
+    };
+  });
 }
 
 export async function getDashboardData() {
@@ -114,7 +127,7 @@ export async function getDashboardData() {
 /**
  * Ultra-fast consolidated data fetcher for Dashboard.
  * Fetches accounts, transactions, and budget in parallel and calculates
- * current month budget expenses directly in memory (zero redundant DB queries).
+ * true net transaction balances (Income - Expense) with zero initial-amount skew.
  */
 export async function getCompleteDashboardData() {
   const user = await checkUser();
@@ -137,6 +150,27 @@ export async function getCompleteDashboardData() {
     }),
   ]);
 
+  // Compute true transaction-based balance for each account (Income - Expense)
+  // so that artificial initial balance amounts do not skew the display!
+  const accountBalances = {};
+  for (const t of transactions) {
+    const amt = serializeAmount(t.amount);
+    const change = t.type === "EXPENSE" ? -amt : amt;
+    accountBalances[t.accountId] = (accountBalances[t.accountId] || 0) + change;
+  }
+
+  const enrichedAccounts = accounts.map((acc) => {
+    const serialized = serializeTransaction(acc);
+    const net =
+      accountBalances[acc.id] !== undefined
+        ? Math.round(accountBalances[acc.id] * 100) / 100
+        : 0;
+    return {
+      ...serialized,
+      balance: net,
+    };
+  });
+
   const defaultAccount = accounts.find((a) => a.isDefault);
   let currentExpenses = 0;
 
@@ -157,7 +191,7 @@ export async function getCompleteDashboardData() {
   }
 
   return {
-    accounts: accounts.map(serializeTransaction),
+    accounts: enrichedAccounts,
     transactions: transactions.map(serializeTransaction),
     budgetData: defaultAccount
       ? {

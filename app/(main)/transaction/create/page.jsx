@@ -44,11 +44,6 @@ export default async function AddTransactionPage({ searchParams }) {
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                 {isEdit ? "Edit Transaction" : "New Transaction"}
               </h1>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                {isEdit
-                  ? "Update your existing transaction details and account balance"
-                  : "Record your income or expense with automated receipt recognition"}
-              </p>
             </div>
           </div>
 

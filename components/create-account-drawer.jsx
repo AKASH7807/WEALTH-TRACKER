@@ -109,64 +109,38 @@ export function CreateAccountDrawer({ children }) {
         )}
       </div>
 
-      {/* Account Type & Balance Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Account Type */}
-        <div className="space-y-1.5">
-          <label
-            htmlFor="type"
-            className="text-xs font-semibold uppercase tracking-wider text-slate-600"
-          >
-            Account Type
-          </label>
-          <Select
-            onValueChange={(value) => setValue("type", value)}
-            defaultValue={watch("type")}
-          >
-            <SelectTrigger
-              id="type"
-              className="h-11 rounded-xl border-slate-200 bg-slate-50/50 px-3.5 text-sm transition-all focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-            >
-              <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl border-slate-200">
-              <SelectItem value="CURRENT" className="rounded-lg">
-                Current
-              </SelectItem>
-              <SelectItem value="SAVINGS" className="rounded-lg">
-                Savings
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          {errors.type && (
-            <p className="text-xs font-medium text-rose-500">
-              {errors.type.message}
-            </p>
-          )}
-        </div>
-
-        {/* Initial Balance */}
-        <div className="space-y-1.5">
-          <label
-            htmlFor="balance"
-            className="text-xs font-semibold uppercase tracking-wider text-slate-600"
-          >
-            Initial Balance (₹)
-          </label>
-          <Input
-            id="balance"
-            type="number"
-            step="0.01"
-            placeholder="0.00"
+      {/* Account Type */}
+      <div className="space-y-1.5">
+        <label
+          htmlFor="type"
+          className="text-xs font-semibold uppercase tracking-wider text-slate-600"
+        >
+          Account Type
+        </label>
+        <Select
+          onValueChange={(value) => setValue("type", value)}
+          defaultValue={watch("type")}
+        >
+          <SelectTrigger
+            id="type"
             className="h-11 rounded-xl border-slate-200 bg-slate-50/50 px-3.5 text-sm transition-all focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-            {...register("balance")}
-          />
-          {errors.balance && (
-            <p className="text-xs font-medium text-rose-500">
-              {errors.balance.message}
-            </p>
-          )}
-        </div>
+          >
+            <SelectValue placeholder="Select type" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl border-slate-200">
+            <SelectItem value="CURRENT" className="rounded-lg">
+              Current
+            </SelectItem>
+            <SelectItem value="SAVINGS" className="rounded-lg">
+              Savings
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        {errors.type && (
+          <p className="text-xs font-medium text-rose-500">
+            {errors.type.message}
+          </p>
+        )}
       </div>
 
       {/* Default Account Switch */}

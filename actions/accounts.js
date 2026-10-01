@@ -54,6 +54,34 @@ export async function updateDefaultAccount(accountId) {
   }
 }
 
+// Update account name
+export async function updateAccountName(accountId, newName) {
+  try {
+    const user = await checkUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const trimmedName = newName?.trim();
+    if (!trimmedName) {
+      return { success: false, error: "Account name cannot be empty" };
+    }
+
+    const updatedAccount = await db.account.update({
+      where: { id: accountId, userId: user.id },
+      data: { name: trimmedName },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/account/${accountId}`);
+    return { success: true, data: serializeTransaction(updatedAccount) };
+  } catch (error) {
+    console.error("updateAccountName error:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to update account name",
+    };
+  }
+}
+
 // Get an account along with its transactions
 export async function getAccountWithTransaction(accountId) {
   try {

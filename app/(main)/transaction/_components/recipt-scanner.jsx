@@ -90,7 +90,7 @@ export function ReceiptScanner({ onScanComplete }) {
               fileInputRef.current.click();
             }
           }}
-          className="h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-medium shadow-md shadow-indigo-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
+          className="h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-medium shadow-md shadow-indigo-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-xs"
         >
           {scanReceiptLoading ? (
             <>
@@ -116,7 +116,7 @@ export function ReceiptScanner({ onScanComplete }) {
               fileInputRef.current.click();
             }
           }}
-          className="h-11 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-medium transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
+          className="h-11 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-medium transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-xs"
         >
           <Upload className="h-4 w-4 text-slate-500" />
           <span>Upload Receipt Image</span>
