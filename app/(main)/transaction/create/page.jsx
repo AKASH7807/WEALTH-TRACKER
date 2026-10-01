@@ -20,7 +20,7 @@ export default async function AddTransactionPage({ searchParams }) {
   const isEdit = Boolean(editId);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       {/* Top Navigation & Header */}
       <div className="flex flex-col gap-3">
         <Link
@@ -31,25 +31,25 @@ export default async function AddTransactionPage({ searchParams }) {
           <span>Back to Dashboard</span>
         </Link>
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
-                {isEdit ? (
-                  <Edit3 className="h-5 w-5" />
-                ) : (
-                  <PlusCircle className="h-5 w-5" />
-                )}
-              </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-slate-200/80">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100/80 shadow-sm">
+              {isEdit ? (
+                <Edit3 className="h-5 w-5" />
+              ) : (
+                <PlusCircle className="h-5 w-5" />
+              )}
+            </div>
+            <div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                 {isEdit ? "Edit Transaction" : "New Transaction"}
               </h1>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                {isEdit
+                  ? "Update your existing transaction details and account balance"
+                  : "Record your income or expense with automated receipt recognition"}
+              </p>
             </div>
-            <p className="text-sm text-slate-500 mt-1 pl-12.5">
-              {isEdit
-                ? "Update your existing transaction details and balance"
-                : "Record your income or expense with automated receipt recognition"}
-            </p>
           </div>
 
           <span
@@ -64,7 +64,7 @@ export default async function AddTransactionPage({ searchParams }) {
         </div>
       </div>
 
-      {/* Form Container */}
+      {/* Responsive Form Workspace */}
       <AddTransactionForm
         accounts={accounts}
         categories={defaultCategories}
