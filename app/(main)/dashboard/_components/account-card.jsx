@@ -53,11 +53,6 @@ const AccountCard = ({ account }) => {
           <CardTitle className="text-sm font-medium capitalize">
             {name}
           </CardTitle>
-          <Switch
-            checked={isDefault}
-            onClick={handleDefaultChange}
-            disable={updateDefaultLoading}
-          />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
@@ -79,6 +74,13 @@ const AccountCard = ({ account }) => {
           </div>
         </CardFooter>
       </Link>
+      <div className="absolute top-4 right-4" onClick={(e) => e.preventDefault()}>
+        <Switch
+          checked={isDefault}
+          onCheckedChange={(checked) => handleDefaultChange({ preventDefault: () => {} })}
+          disabled={updateDefaultLoading}
+        />
+      </div>
     </Card>
   );
 };
