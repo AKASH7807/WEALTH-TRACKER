@@ -3,7 +3,8 @@ import {notFound} from "next/navigation";
 import React, {Suspense} from "react";
 import TransactionTable from "../_components/tansaction-table";
 import {BarLoader} from "react-spinners";
-import AccountChart from "../_components/account-chart";
+import dynamic from "next/dynamic";
+const AccountChart = dynamic(() => import("../_components/account-chart"), { ssr: false });
 
 const AccountPage = async ({params}) => {
     const accountData = await getAccountWithTransaction((await params).id);

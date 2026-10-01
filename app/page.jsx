@@ -179,7 +179,7 @@ export default function Home() {
             from one powerful dashboard.
           </p>
           <div className="mt-8">
-            <Link href="/dashboard">
+            <Link href="/dashboard" prefetch={true}>
               <Button
                 size="lg"
                 className="bg-white text-indigo-600 hover:bg-indigo-50 rounded-full px-10 shadow-md"

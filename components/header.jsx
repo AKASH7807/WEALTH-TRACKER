@@ -62,6 +62,7 @@ const Header = () => {
             <SignedIn>
               <Link
                 href="/dashboard"
+                prefetch={true}
                 className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full border border-white/30
               bg-white/10 backdrop-blur-md text-white hover:bg-white/20 hover:border-white/50 hover:shadow-lg hover:shadow-white/10 transition-all duration-200"
               >
@@ -71,6 +72,7 @@ const Header = () => {
 
               <Link
                 href="/transaction/create"
+                prefetch={true}
                 className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full bg-white text-indigo-700 hover:bg-white/90 transition"
               >
                 <PenBox size={18} />
@@ -131,6 +133,7 @@ const Header = () => {
               <div className="mt-6 flex flex-col gap-3">
                 <Link
                   href="/dashboard"
+                  prefetch={true}
                   onClick={() => setOpen(false)}
                   className="flex items-center justify-center gap-2 w-full py-2 rounded-full text-white border border-white/30"
                 >
@@ -140,6 +143,7 @@ const Header = () => {
 
                 <Link
                   href="/transaction/create"
+                  prefetch={true}
                   onClick={() => setOpen(false)}
                   className="flex items-center justify-center gap-2 w-full py-2 rounded-full bg-white text-indigo-700 font-semibold"
                 >

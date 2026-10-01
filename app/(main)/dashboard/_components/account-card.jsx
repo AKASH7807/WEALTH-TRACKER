@@ -48,7 +48,7 @@ const AccountCard = ({ account }) => {
 
   return (
     <Card className="hover:shadow-md transition-shadow group relative">
-      <Link href={`/account/${id}`}>
+      <Link href={`/account/${id}`} prefetch={true}>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-sm font-medium capitalize">
             {name}

@@ -6,7 +6,8 @@ import React, { Suspense } from "react";
 import AccountCard from "./_components/account-card";
 import { getCurrentBudget } from "@/actions/budget";
 import BudgetProgress from "./_components/budget-progress";
-import { DashboardOverview } from "./_components/transaction-overview";
+import dynamic from "next/dynamic";
+const DashboardOverview = dynamic(() => import("./_components/transaction-overview").then(mod => mod.DashboardOverview), { ssr: false });
 import DashboardSkeleton from "./_components/dashboard-skeleton";
 
 export const dynamic = "force-dynamic";
