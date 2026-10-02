@@ -3,7 +3,13 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { PieChart as PieIcon, ArrowRight, Plus, Sparkles, Layers } from "lucide-react";
+import {
+  PieChart as PieIcon,
+  ArrowRight,
+  Plus,
+  Sparkles,
+  Layers,
+} from "lucide-react";
 
 import {
   Select,
@@ -12,19 +18,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { categoryColors } from "@/data/categories";
 import { cn } from "@/lib/utils";
 
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 const FALLBACK_COLORS = [
   "#6366f1", // indigo
@@ -108,7 +114,7 @@ export function DashboardOverview({ accounts = [], transactions = [] }) {
 
     const total = currentMonthExpenses.reduce(
       (sum, t) => sum + Number(t.amount || 0),
-      0
+      0,
     );
 
     const expensesByCategory = currentMonthExpenses.reduce((acc, t) => {
@@ -123,7 +129,9 @@ export function DashboardOverview({ accounts = [], transactions = [] }) {
         category,
         value: amount,
         percentage: total > 0 ? (amount / total) * 100 : 0,
-        color: categoryColors[category] || FALLBACK_COLORS[index % FALLBACK_COLORS.length],
+        color:
+          categoryColors[category] ||
+          FALLBACK_COLORS[index % FALLBACK_COLORS.length],
       }))
       .sort((a, b) => b.value - a.value);
 
@@ -163,7 +171,11 @@ export function DashboardOverview({ accounts = [], transactions = [] }) {
                 All Accounts Combined
               </SelectItem>
               {accounts.map((account) => (
-                <SelectItem key={account.id} value={account.id} className="text-xs">
+                <SelectItem
+                  key={account.id}
+                  value={account.id}
+                  className="text-xs"
+                >
                   {account.name}
                 </SelectItem>
               ))}
@@ -181,10 +193,7 @@ export function DashboardOverview({ accounts = [], transactions = [] }) {
             <div>
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                 No expenses recorded this month
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5 max-w-sm">
-                Your monthly spending is at ₹0. Add expenses or scan receipts to track your category analytics.
-              </p>
+              </p> 
             </div>
             <Link
               href="/transaction/create"

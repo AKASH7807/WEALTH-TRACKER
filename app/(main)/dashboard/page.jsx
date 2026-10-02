@@ -20,7 +20,7 @@ async function DashboardContent() {
   const defaultAccount = accounts?.find((account) => account.isDefault);
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-4 sm:space-y-8">
       {/* 1. Executive Financial Summary Metric Cards + Quick Actions Hub */}
       <DashboardStats accounts={accounts} transactions={transactions || []} />
 
@@ -52,9 +52,6 @@ async function DashboardContent() {
             <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
               Your Accounts
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Click any account to view its full transaction activity feed
-            </p>
           </div>
           <Link
             href="/transaction/categories"

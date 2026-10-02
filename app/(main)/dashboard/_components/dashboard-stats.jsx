@@ -30,33 +30,34 @@ export function DashboardStats({ accounts = [], transactions = [] }) {
   }, [accounts]);
 
   // Current month financial flow
-  const { monthlyIncome, monthlyExpense, netCashflow, savingsRate } = useMemo(() => {
-    const now = new Date();
-    const curMonth = now.getMonth();
-    const curYear = now.getFullYear();
+  const { monthlyIncome, monthlyExpense, netCashflow, savingsRate } =
+    useMemo(() => {
+      const now = new Date();
+      const curMonth = now.getMonth();
+      const curYear = now.getFullYear();
 
-    let inc = 0;
-    let exp = 0;
+      let inc = 0;
+      let exp = 0;
 
-    for (const t of transactions) {
-      const d = new Date(t.date);
-      if (d.getMonth() === curMonth && d.getFullYear() === curYear) {
-        const amt = Number(t.amount) || 0;
-        if (t.type === "INCOME") inc += amt;
-        else if (t.type === "EXPENSE") exp += amt;
+      for (const t of transactions) {
+        const d = new Date(t.date);
+        if (d.getMonth() === curMonth && d.getFullYear() === curYear) {
+          const amt = Number(t.amount) || 0;
+          if (t.type === "INCOME") inc += amt;
+          else if (t.type === "EXPENSE") exp += amt;
+        }
       }
-    }
 
-    const net = inc - exp;
-    const rate = inc > 0 ? (net / inc) * 100 : 0;
+      const net = inc - exp;
+      const rate = inc > 0 ? (net / inc) * 100 : 0;
 
-    return {
-      monthlyIncome: inc,
-      monthlyExpense: exp,
-      netCashflow: net,
-      savingsRate: rate,
-    };
-  }, [transactions]);
+      return {
+        monthlyIncome: inc,
+        monthlyExpense: exp,
+        netCashflow: net,
+        savingsRate: rate,
+      };
+    }, [transactions]);
 
   return (
     <div className="space-y-4">
@@ -146,7 +147,7 @@ export function DashboardStats({ accounts = [], transactions = [] }) {
                   "text-xl sm:text-2xl font-black tracking-tight",
                   netCashflow >= 0
                     ? "text-slate-900 dark:text-white"
-                    : "text-rose-600 dark:text-rose-400"
+                    : "text-rose-600 dark:text-rose-400",
                 )}
               >
                 {netCashflow < 0 ? "-₹" : "₹"}
@@ -180,13 +181,6 @@ export function DashboardStats({ accounts = [], transactions = [] }) {
         >
           <Plus className="h-3.5 w-3.5" />
           <span>Add Transaction</span>
-        </Link>
-        <Link
-          href="/transaction/create"
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-xs font-semibold shadow-xs shrink-0 transition-transform active:scale-95"
-        >
-          <Camera className="h-3.5 w-3.5 text-purple-600" />
-          <span>Scan Receipt (AI OCR)</span>
         </Link>
         <Link
           href="/transaction/categories"

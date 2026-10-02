@@ -64,6 +64,8 @@ import {
   ChevronUp,
   Download,
   FileText,
+  FileSpreadsheet,
+  Loader2,
   Trash2,
   Pencil,
   RotateCcw,
@@ -105,17 +107,17 @@ function renderCategoryBadge(category) {
   return (
     <span
       style={{
-        backgroundColor: `${rawColor}18`, // ~10% opacity for gentle, mild light tint
+        backgroundColor: `${rawColor}15`, // gentle, mild light tint
         color: rawColor,
-        borderColor: `${rawColor}35`,
+        borderColor: `${rawColor}30`,
       }}
-      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border capitalize tracking-tight shrink-0 select-none shadow-xs"
+      className="inline-flex items-center gap-1 sm:gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold border capitalize tracking-tight shrink-0 select-none shadow-2xs leading-none"
     >
       <span
         className="w-1.5 h-1.5 rounded-full shrink-0"
         style={{ backgroundColor: rawColor }}
       />
-      <span className="truncate max-w-[120px] sm:max-w-[180px]">{name}</span>
+      <span className="truncate max-w-[95px] sm:max-w-[150px]">{name}</span>
     </span>
   );
 }
@@ -128,7 +130,7 @@ function renderTransactionAvatar(transaction) {
   // Special "slice" styling from screenshot
   if (lower === "slice") {
     return (
-      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#7C3AED] text-white flex items-center justify-center font-bold text-xs tracking-tight shadow-xs shrink-0 select-none">
+      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#7C3AED] text-white flex items-center justify-center font-bold text-[10px] sm:text-xs tracking-tight shadow-xs shrink-0 select-none">
         slice
       </div>
     );
@@ -137,8 +139,8 @@ function renderTransactionAvatar(transaction) {
   // Special "bank transfer" styling from screenshot
   if (lower.includes("bank transfer") || lower.includes("transfer")) {
     return (
-      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs shrink-0 select-none">
-        <Landmark className="h-5 w-5" />
+      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs shrink-0 select-none">
+        <Landmark className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
       </div>
     );
   }
@@ -146,8 +148,8 @@ function renderTransactionAvatar(transaction) {
   // Special "repayment" styling from screenshot
   if (lower.includes("repayment") || transaction.isRecurring) {
     return (
-      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#84cc16] text-white flex items-center justify-center shadow-xs shrink-0 select-none">
-        <RotateCcw className="h-5 w-5" />
+      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#84cc16] text-white flex items-center justify-center shadow-xs shrink-0 select-none">
+        <RotateCcw className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
       </div>
     );
   }
@@ -170,7 +172,7 @@ function renderTransactionAvatar(transaction) {
   return (
     <div
       className={cn(
-        "w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-base sm:text-lg shadow-xs shrink-0 select-none",
+        "w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-base shadow-xs shrink-0 select-none",
         palette
       )}
     >
@@ -202,6 +204,8 @@ export function TransactionTable({ transactions = [] }) {
   // Action Dialog state (for mobile hold / desktop click)
   const [actionTransaction, setActionTransaction] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
 
   // Long press timer refs for mobile
   const timerRef = useRef(null);
@@ -406,7 +410,8 @@ export function TransactionTable({ transactions = [] }) {
   // CSV Export
   const handleDownloadCSV = () => {
     try {
-      if (!transactions || transactions.length === 0) {
+      const dataToExport = filteredAndSortedTransactions.length > 0 ? filteredAndSortedTransactions : transactions;
+      if (!dataToExport || dataToExport.length === 0) {
         toast.error("No transactions to export");
         return;
       }
@@ -421,7 +426,7 @@ export function TransactionTable({ transactions = [] }) {
         "Next Recurring Date",
       ];
 
-      const rows = transactions.map((t) => [
+      const rows = dataToExport.map((t) => [
         format(new Date(t.date), "PPP"),
         t.description || "",
         t.category || "",
@@ -445,7 +450,7 @@ export function TransactionTable({ transactions = [] }) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast.success("CSV export downloaded");
+      toast.success("CSV export downloaded successfully");
     } catch (err) {
       console.error(err);
       toast.error("Failed to export transactions");
@@ -455,11 +460,13 @@ export function TransactionTable({ transactions = [] }) {
   // PDF Export
   const handleDownloadPDF = async () => {
     try {
-      if (!transactions || transactions.length === 0) {
+      const dataToExport = filteredAndSortedTransactions.length > 0 ? filteredAndSortedTransactions : transactions;
+      if (!dataToExport || dataToExport.length === 0) {
         toast.error("No transactions to export");
         return;
       }
 
+      setIsExportingPDF(true);
       const { jsPDF } = await import("jspdf");
       await import("jspdf-autotable");
 
@@ -472,7 +479,7 @@ export function TransactionTable({ transactions = [] }) {
         "Recurring",
         "Next Recurring Date",
       ];
-      const rows = transactions.map((t) => [
+      const rows = dataToExport.map((t) => [
         format(new Date(t.date), "PPP"),
         t.description || "",
         t.category || "",
@@ -532,10 +539,12 @@ export function TransactionTable({ transactions = [] }) {
 
       const now = new Date().toISOString().slice(0, 10);
       doc.save(`transactions_${now}.pdf`);
-      toast.success("PDF report downloaded");
+      toast.success("PDF report downloaded successfully");
     } catch (err) {
       console.error(err);
       toast.error("Failed to generate PDF");
+    } finally {
+      setIsExportingPDF(false);
     }
   };
 
@@ -553,7 +562,7 @@ export function TransactionTable({ transactions = [] }) {
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Activity
           </h2>
-          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300">
+          <span className="text-xs font-bold px-2.5 py-0.5 rounded-xl bg-purple-50 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300">
             {filteredAndSortedTransactions.length}
           </span>
         </div>
@@ -572,30 +581,17 @@ export function TransactionTable({ transactions = [] }) {
             {isSelectMode ? "Cancel" : "Select"}
           </Button>
 
-          {/* Export Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full h-8 sm:h-9 px-3 gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200"
-              >
-                <Download className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Export</span>
-                <ChevronDown className="h-3 w-3 opacity-60" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-xl shadow-lg">
-              <DropdownMenuItem onClick={handleDownloadCSV} className="text-xs font-medium cursor-pointer">
-                <Download className="h-3.5 w-3.5 mr-2 text-emerald-600" />
-                Export CSV (Excel)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownloadPDF} className="text-xs font-medium cursor-pointer">
-                <FileText className="h-3.5 w-3.5 mr-2 text-rose-600" />
-                Export PDF Document
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Export Button (Opens format selection modal: CSV or PDF) */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setExportDialogOpen(true)}
+            className="rounded-full h-8 sm:h-9 px-3 gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-xs active:scale-95 transition-all"
+            title="Export transactions"
+          >
+            <Download className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+            <span>Export</span>
+          </Button>
 
           {/* View Mode Toggle: Activity vs Table */}
           <div className="hidden md:flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
@@ -919,7 +915,7 @@ export function TransactionTable({ transactions = [] }) {
                   )}
                 >
                   {/* Left: Avatar + Title + Subtitle */}
-                  <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
                     {/* Checkbox if in Select Mode */}
                     {isSelectMode && (
                       <div onClick={(e) => e.stopPropagation()}>
@@ -938,24 +934,26 @@ export function TransactionTable({ transactions = [] }) {
                       <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base leading-snug truncate">
                         {transaction.description || "Untitled Transaction"}
                       </div>
-                      <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 sm:gap-2 mt-1 flex-wrap">
-                        {/* Date formatted as: 2 Oct '26 */}
-                        <span className="shrink-0 text-slate-500 font-medium">
+
+                      {/* Subtitle: Date, with category label in new line on mobile */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-0.5">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium shrink-0">
                           {format(new Date(transaction.date), "d MMM ''yy")}
                         </span>
 
-                        {/* Modern Mild Pill Badge */}
-                        {renderCategoryBadge(transaction.category)}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {renderCategoryBadge(transaction.category)}
 
-                        {/* Recurring badge if recurring */}
-                        {transaction.isRecurring && (
-                          <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400 font-semibold bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full text-[10px] border border-purple-200/50 dark:border-purple-800/50">
-                            <RefreshCw className="h-2.5 w-2.5" />
-                            <span>
-                              {RECURRING_INTERVALS[transaction.recurringInterval] || "Recurring"}
+                          {/* Recurring badge if recurring */}
+                          {transaction.isRecurring && (
+                            <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400 font-semibold bg-purple-50 dark:bg-purple-950/60 px-1.5 sm:px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] border border-purple-200/50 dark:border-purple-800/50">
+                              <RefreshCw className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
+                              <span>
+                                {RECURRING_INTERVALS[transaction.recurringInterval] || "Recurring"}
+                              </span>
                             </span>
-                          </span>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1256,7 +1254,7 @@ export function TransactionTable({ transactions = [] }) {
                         Confirm Permanent Deletion
                       </h5>
                       <p className="text-[11px] text-rose-700/90 dark:text-rose-300/80 mt-0.5 leading-relaxed">
-                        Are you sure you want to delete this transaction record? This action cannot be undone and your account balance will be recalculated.
+                        Are you sure you want to delete this transaction record?
                       </p>
                     </div>
                   </div>
@@ -1325,6 +1323,93 @@ export function TransactionTable({ transactions = [] }) {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Format Dialog Modal (CSV vs PDF) */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="w-[92vw] max-w-md p-5 sm:p-6 rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl bg-white dark:bg-slate-900">
+          <DialogHeader className="text-left pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                <Download className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                  Export Transactions
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Choose your preferred format to export {filteredAndSortedTransactions.length} transaction {filteredAndSortedTransactions.length === 1 ? "record" : "records"}.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 pt-3">
+            {/* CSV Option Card */}
+            <button
+              type="button"
+              onClick={() => {
+                setExportDialogOpen(false);
+                handleDownloadCSV();
+              }}
+              className="w-full text-left p-3.5 sm:p-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 hover:border-emerald-500/60 dark:hover:border-emerald-500/60 bg-slate-50/70 dark:bg-slate-800/40 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-all group flex items-start gap-3.5 cursor-pointer"
+            >
+              <div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                <FileSpreadsheet className="h-5 w-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-sm text-slate-900 dark:text-slate-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                    CSV Spreadsheet
+                  </span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
+                    Excel / Sheets
+                  </span>
+                </div>
+              
+              </div>
+            </button>
+
+            {/* PDF Option Card */}
+            <button
+              type="button"
+              disabled={isExportingPDF}
+              onClick={() => {
+                setExportDialogOpen(false);
+                handleDownloadPDF();
+              }}
+              className="w-full text-left p-3.5 sm:p-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 hover:border-rose-500/60 dark:hover:border-rose-500/60 bg-slate-50/70 dark:bg-slate-800/40 hover:bg-rose-50/40 dark:hover:bg-rose-950/20 transition-all group flex items-start gap-3.5 cursor-pointer disabled:opacity-50"
+            >
+              <div className="h-10 w-10 rounded-xl bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                {isExportingPDF ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <FileText className="h-5 w-5" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-sm text-slate-900 dark:text-slate-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                    PDF Document
+                  </span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 shrink-0">
+                    Statement
+                  </span>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <div className="pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setExportDialogOpen(false)}
+              className="w-full rounded-xl text-xs text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 h-9 font-medium"
+            >
+              Cancel
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
