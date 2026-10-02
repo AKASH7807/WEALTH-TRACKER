@@ -239,6 +239,124 @@ export async function deleteCategory(categoryId) {
 }
 
 /**
+ * Update an existing category (name and type)
+ * Allows editing custom categories or customizing default categories
+ */
+export async function updateCategory(categoryId, data) {
+  try {
+    const user = await checkUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const trimmedName = data.name?.trim();
+    if (!trimmedName) throw new Error("Category name is required");
+    if (trimmedName.length > 50)
+      throw new Error("Category name must be under 50 characters");
+
+    const type = data.type === "INCOME" ? "INCOME" : "EXPENSE";
+
+    // 1. Check if it's a custom category
+    const customCategory = await db.category.findUnique({
+      where: { id: categoryId },
+    });
+
+    if (customCategory && customCategory.userId === user.id) {
+      if (
+        customCategory.name.toLowerCase() !== trimmedName.toLowerCase() ||
+        customCategory.type !== type
+      ) {
+        const existing = await db.category.findFirst({
+          where: {
+            userId: user.id,
+            name: { equals: trimmedName, mode: "insensitive" },
+            type,
+            id: { not: categoryId },
+          },
+        });
+        if (existing) {
+          throw new Error(
+            `A category named "${trimmedName}" already exists for ${type.toLowerCase()}.`
+          );
+        }
+      }
+
+      const updated = await db.category.update({
+        where: { id: categoryId },
+        data: {
+          name: trimmedName,
+          type,
+        },
+      });
+
+      revalidatePath("/transaction/categories");
+      revalidatePath("/transaction/create");
+      revalidatePath("/dashboard");
+
+      return {
+        success: true,
+        data: {
+          id: updated.id,
+          name: updated.name,
+          type: updated.type,
+          color: updated.color,
+          isCustom: true,
+        },
+        message: `Category updated to "${updated.name}"`,
+      };
+    }
+
+    // 2. Check if it's a default category
+    const defaultCat = defaultCategories.find((c) => c.id === categoryId);
+    if (defaultCat) {
+      const currentHidden = Array.isArray(user.hiddenCategories)
+        ? user.hiddenCategories
+        : [];
+
+      if (!currentHidden.includes(categoryId)) {
+        await db.user.update({
+          where: { id: user.id },
+          data: {
+            hiddenCategories: [...currentHidden, categoryId],
+          },
+        });
+      }
+
+      const created = await db.category.create({
+        data: {
+          name: trimmedName,
+          type,
+          color: defaultCat.color || (type === "EXPENSE" ? "#f43f5e" : "#10b981"),
+          userId: user.id,
+        },
+      });
+
+      revalidatePath("/transaction/categories");
+      revalidatePath("/transaction/create");
+      revalidatePath("/dashboard");
+
+      return {
+        success: true,
+        data: {
+          id: created.id,
+          name: created.name,
+          type: created.type,
+          color: created.color,
+          isCustom: true,
+        },
+        message: `Category updated to "${created.name}"`,
+      };
+    }
+
+    throw new Error("Category not found");
+  } catch (error) {
+    console.error("updateCategory error:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to update category",
+    };
+  }
+}
+
+/**
  * Restore a previously hidden default category
  */
 export async function restoreCategory(categoryId) {

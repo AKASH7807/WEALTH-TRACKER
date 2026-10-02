@@ -1,14 +1,13 @@
 import {getAccountWithTransaction} from "@/actions/accounts";
 import {notFound} from "next/navigation";
 import React, {Suspense} from "react";
-import TransactionTable from "../_components/tansaction-table";
+import AccountView from "../_components/account-view";
 import {BarLoader} from "react-spinners";
-import AccountChart from "../_components/account-chart";
 
 const AccountPage = async ({params}) => {
     const accountData = await getAccountWithTransaction((await params).id);
 
-    if (! accountData) {
+    if (!accountData) {
         notFound();
     }
 
@@ -17,52 +16,13 @@ const AccountPage = async ({params}) => {
         ...account
     } = accountData;
 
-    const netTransactionBalance = transactions.reduce((acc, t) => {
-        return t.type === "INCOME" ? acc + t.amount : acc - t.amount;
-    }, 0);
-
-    return (<div className="space-y-8 px-5">
-        <div className="flex gap-4 items-end justify-between">
-            <div>
-                <h1 className="text-3xl sm:text-3xl font-semibold gradient-title capitalize"> {
-                    account.name
-                } </h1>
-                <p> {
-                    account.type.charAt(0) + account.type.slice(1).toLowerCase()
-                }
-                    {" "}
-                    Account
-                </p>
-            </div>
-            <div className="text-right pb-2">
-                <div className="text-xl sm:text-2xl font-bold">
-                    {`₹${netTransactionBalance.toFixed(2)}`} </div>
-                <p className="text-sm text-muted-foreground"> {
-                    account._count.transactions
-                }
-                    Transactions
-                </p>
-            </div>
-        </div>
-
-        {/* Chart Section  */}
+    return (
         <Suspense fallback={
-            <BarLoader
-            className="mt-4"width={"100%"}
-            color="#9333ea"/>
+            <BarLoader className="mt-4" width={"100%"} color="#9333ea"/>
         }>
-            <AccountChart transactions={transactions}/>
+            <AccountView account={account} transactions={transactions} />
         </Suspense>
-
-        {/* Transaction Table  */}
-        <Suspense fallback={
-            <BarLoader
-            className="mt-4"width={"100%"}
-            color="#9333ea"/>
-        }>
-            <TransactionTable transactions={transactions}/>
-        </Suspense>
-    </div>);
+    );
 };
 
 export default AccountPage;

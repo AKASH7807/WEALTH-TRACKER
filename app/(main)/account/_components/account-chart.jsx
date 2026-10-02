@@ -197,12 +197,12 @@ export function AccountChart({ transactions = [] }) {
 
   return (
     <Card className="rounded-2xl border-slate-200 shadow-sm overflow-hidden">
-      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 bg-slate-50/40">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-6 pb-3 sm:pb-4 border-b border-slate-100 bg-slate-50/40">
         <div>
-          <CardTitle className="text-base font-bold text-slate-900">
+          <CardTitle className="text-base sm:text-lg font-bold text-slate-900">
             Transaction Overview
           </CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
             <span className="font-semibold text-slate-700">{activeLabel}</span>
             {" • "}
             <span>{activeSubtext}</span>
@@ -211,9 +211,9 @@ export function AccountChart({ transactions = [] }) {
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 self-start sm:self-auto">
+        <div className="flex items-center gap-1.5 w-full sm:w-auto">
           {/* Quick Prev / Next Month stepper */}
-          <div className="flex items-center rounded-xl border border-slate-200 bg-white p-0.5 shadow-2xs">
+          <div className="flex items-center rounded-xl border border-slate-200 bg-white p-0.5 shadow-2xs shrink-0">
             <Button
               variant="ghost"
               size="icon"
@@ -236,7 +236,7 @@ export function AccountChart({ transactions = [] }) {
 
           {/* Month / Range Select Dropdown */}
           <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-[180px] sm:w-[200px] h-9 text-xs sm:text-sm rounded-xl border-slate-200 bg-white">
+            <SelectTrigger className="flex-1 sm:w-[200px] h-9 text-xs sm:text-sm rounded-xl border-slate-200 bg-white">
               <SelectValue placeholder="Select Month / Range" />
             </SelectTrigger>
             <SelectContent className="max-h-72 rounded-xl">
@@ -270,40 +270,60 @@ export function AccountChart({ transactions = [] }) {
         </div>
       </CardHeader>
 
-      <CardContent className="pt-6">
-        {/* Period Totals Summary Bar */}
-        <div className="grid grid-cols-3 gap-2 p-3 mb-6 rounded-xl bg-slate-50 border border-slate-100 text-center">
-          <div className="space-y-0.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Total Income
-            </p>
-            <p className="text-base sm:text-lg font-extrabold text-emerald-600">
-              {`₹${totals.income.toFixed(2)}`}
-            </p>
+      <CardContent className="p-3 sm:p-6 pt-3.5 sm:pt-6">
+        {/* Period Totals Summary Bar - Premium, Responsive & Non-colliding */}
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-4 p-1.5 sm:p-3 mb-5 sm:mb-6 rounded-xl sm:rounded-2xl bg-slate-50/90 border border-slate-200/80">
+          {/* Total Income */}
+          <div className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white border border-emerald-100/90 shadow-2xs text-center min-w-0">
+            <span className="text-[9px] min-[360px]:text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-700/80 mb-0.5 truncate w-full">
+              <span className="hidden min-[420px]:inline">Total </span>Income
+            </span>
+            <span
+              className="text-xs min-[360px]:text-sm sm:text-base md:text-lg font-bold sm:font-extrabold text-emerald-600 tracking-tight truncate w-full"
+              title={`₹${totals.income.toFixed(2)}`}
+            >
+              ₹{totals.income.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </span>
           </div>
 
-          <div className="space-y-0.5 border-x border-slate-200/80">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Total Expenses
-            </p>
-            <p className="text-base sm:text-lg font-extrabold text-rose-600">
-              {`₹${totals.expense.toFixed(2)}`}
-            </p>
+          {/* Total Expense */}
+          <div className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white border border-rose-100/90 shadow-2xs text-center min-w-0">
+            <span className="text-[9px] min-[360px]:text-[10px] sm:text-xs font-bold uppercase tracking-wider text-rose-700/80 mb-0.5 truncate w-full">
+              <span className="hidden min-[420px]:inline">Total </span>Expense
+            </span>
+            <span
+              className="text-xs min-[360px]:text-sm sm:text-base md:text-lg font-bold sm:font-extrabold text-rose-600 tracking-tight truncate w-full"
+              title={`₹${totals.expense.toFixed(2)}`}
+            >
+              ₹{totals.expense.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </span>
           </div>
 
-          <div className="space-y-0.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          {/* Net Balance */}
+          <div className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white border border-indigo-100/90 shadow-2xs text-center min-w-0">
+            <span className="text-[9px] min-[360px]:text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 mb-0.5 truncate w-full">
               Net Balance
-            </p>
-            <p
-              className={`text-base sm:text-lg font-extrabold ${
+            </span>
+            <span
+              className={`text-xs min-[360px]:text-sm sm:text-base md:text-lg font-bold sm:font-extrabold tracking-tight truncate w-full ${
                 totals.income - totals.expense >= 0
                   ? "text-emerald-600"
                   : "text-rose-600"
               }`}
+              title={`₹${(totals.income - totals.expense).toFixed(2)}`}
             >
-              {`₹${(totals.income - totals.expense).toFixed(2)}`}
-            </p>
+              {totals.income - totals.expense < 0 ? "-₹" : "₹"}
+              {Math.abs(totals.income - totals.expense).toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </span>
           </div>
         </div>
 

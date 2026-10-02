@@ -71,16 +71,6 @@ const Header = () => {
               </Link>
 
               <Link
-                href="/transaction/categories"
-                prefetch={true}
-                className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full border border-white/30
-              bg-white/10 backdrop-blur-md text-white hover:bg-white/20 hover:border-white/50 hover:shadow-lg hover:shadow-white/10 transition-all duration-200"
-              >
-                <Tag size={16} />
-                Categories
-              </Link>
-
-              <Link
                 href="/transaction/create"
                 prefetch={true}
                 className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full bg-white text-indigo-700 hover:bg-white/90 transition"
@@ -95,7 +85,16 @@ const Header = () => {
                     avatarBox: "w-9 h-9 ring-2 ring-white/40 rounded-full",
                   },
                 }}
-              />
+              >
+                <UserButton.MenuItems>
+                  <UserButton.Link
+                    label="Manage Categories"
+                    href="/transaction/categories"
+                    labelIcon={<Tag size={15} />}
+                  />
+                  <UserButton.Action label="manageAccount" />
+                </UserButton.MenuItems>
+              </UserButton>
             </SignedIn>
 
             {/* Mobile Menu Button */}
@@ -149,16 +148,6 @@ const Header = () => {
                 >
                   <LayoutDashboard size={18} />
                   Dashboard
-                </Link>
-
-                <Link
-                  href="/transaction/categories"
-                  prefetch={true}
-                  onClick={() => setOpen(false)}
-                  className="flex items-center justify-center gap-2 w-full py-2 rounded-full text-white border border-white/30"
-                >
-                  <Tag size={18} />
-                  Categories
                 </Link>
 
                 <Link

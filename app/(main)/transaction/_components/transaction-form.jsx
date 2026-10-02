@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import Link from "next/link";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -16,8 +15,6 @@ import {
   CheckCircle2,
   Receipt,
   ArrowRight,
-  Clock,
-  Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -40,8 +37,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CreateAccountDrawer } from "@/components/create-account-drawer";
-import { CategoryIcon } from "@/components/category-icon";
 import { cn } from "@/lib/utils";
 import { createTransaction, updateTransaction } from "@/actions/transaction";
 import { transactionSchema } from "@/app/lib/schema";
@@ -178,19 +173,12 @@ export function AddTransactionForm({
 
   const filteredSuggestions = useMemo(() => {
     if (!descriptionSuggestions || descriptionSuggestions.length === 0) return [];
-    if (!watchedDescription || !watchedDescription.trim()) {
-      return descriptionSuggestions.slice(0, 6);
-    }
-    const query = watchedDescription.toLowerCase().trim();
+    const query = (watchedDescription || "").toLowerCase().trim();
+    if (!query) return [];
     return descriptionSuggestions
       .filter((s) => s.description.toLowerCase().includes(query))
-      .slice(0, 6);
+      .slice(0, 5);
   }, [descriptionSuggestions, watchedDescription]);
-
-  const topSuggestions = useMemo(() => {
-    if (!descriptionSuggestions || descriptionSuggestions.length === 0) return [];
-    return descriptionSuggestions.slice(0, 5);
-  }, [descriptionSuggestions]);
 
   const handleSelectSuggestion = (suggestion) => {
     setValue("description", suggestion.description, { shouldValidate: true });
@@ -320,14 +308,6 @@ export function AddTransactionForm({
                   <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Account
                   </label>
-                  <CreateAccountDrawer>
-                    <button
-                      type="button"
-                      className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition"
-                    >
-                      + New Account
-                    </button>
-                  </CreateAccountDrawer>
                 </div>
 
                 <Controller
@@ -375,12 +355,6 @@ export function AddTransactionForm({
                   <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Category
                   </label>
-                  <Link
-                    href="/transaction/categories"
-                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition flex items-center gap-1"
-                  >
-                    + Manage Categories
-                  </Link>
                 </div>
 
                 <Controller
@@ -407,10 +381,6 @@ export function AddTransactionForm({
                                 style={{
                                   backgroundColor: category.color || "#6366f1",
                                 }}
-                              />
-                              <CategoryIcon
-                                name={category.icon}
-                                className="h-3.5 w-3.5 text-slate-500 shrink-0"
                               />
                               <span>{category.name}</span>
                             </div>
@@ -478,20 +448,15 @@ export function AddTransactionForm({
                 )}
               </div>
 
-              {/* Description / Merchant with Used List Suggestions */}
+              {/* Description Field */}
               <div className="space-y-1.5" ref={suggestionsRef}>
                 <div className="h-5 flex items-center justify-between">
                   <label
                     htmlFor="description"
                     className="text-xs font-semibold uppercase tracking-wider text-slate-500"
                   >
-                    Description / Note
+                    Description
                   </label>
-                  {descriptionSuggestions.length > 0 && (
-                    <span className="text-[11px] font-medium text-indigo-600">
-                      {descriptionSuggestions.length} saved notes
-                    </span>
-                  )}
                 </div>
                 <div className="relative">
                   <Input
@@ -503,17 +468,11 @@ export function AddTransactionForm({
                     onFocus={() => setShowSuggestions(true)}
                   />
 
-                  {/* Suggestion Dropdown List */}
-                  {showSuggestions && filteredSuggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden divide-y divide-slate-100 animate-in fade-in-50 zoom-in-95 duration-150">
-                      <div className="px-3.5 py-2 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="h-3 w-3 text-slate-400" />
-                          Past Used Notes
-                        </span>
-                        <span>{filteredSuggestions.length} found</span>
-                      </div>
-                      <div className="max-h-52 overflow-y-auto">
+                  {/* Small-sized autocomplete dropdown - only appears while typing matching notes */}
+                  {showSuggestions &&
+                    watchedDescription?.trim().length > 0 &&
+                    filteredSuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white rounded-xl shadow-md border border-slate-200/90 overflow-hidden py-1 max-h-36 overflow-y-auto">
                         {filteredSuggestions.map((s, idx) => (
                           <button
                             key={idx}
@@ -522,47 +481,21 @@ export function AddTransactionForm({
                               e.preventDefault();
                               handleSelectSuggestion(s);
                             }}
-                            className="w-full text-left px-3.5 py-2.5 hover:bg-indigo-50/70 flex items-center justify-between transition-colors group cursor-pointer"
+                            className="w-full text-left px-3 py-1.5 hover:bg-indigo-50/80 flex items-center justify-between text-xs text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer"
                           >
-                            <div className="flex items-center gap-2 truncate pr-2">
-                              <span className="text-sm font-medium text-slate-800 group-hover:text-indigo-600 truncate">
-                                {s.description}
-                              </span>
-                              {s.category && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 capitalize shrink-0 font-medium">
-                                  {s.category.replace(/-/g, " ")}
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[10px] font-semibold text-slate-400 shrink-0 bg-slate-50 px-1.5 py-0.5 rounded-full border border-slate-100">
-                              {s.count}×
+                            <span className="truncate font-medium">
+                              {s.description}
                             </span>
+                            {s.category && (
+                              <span className="text-[10px] text-slate-400 capitalize shrink-0 ml-2">
+                                {s.category.replace(/-/g, " ")}
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
-
-                {/* Quick Used Notes Chips */}
-                {topSuggestions.length > 0 && (
-                  <div className="pt-1 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
-                      <Sparkles className="h-3 w-3 text-amber-500 shrink-0" />
-                      Quick:
-                    </span>
-                    {topSuggestions.map((s, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => handleSelectSuggestion(s)}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 text-[11px] font-medium border border-slate-200/80 transition-colors"
-                      >
-                        <span>{s.description}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
 
                 {errors.description && (
                   <p className="text-xs font-medium text-rose-500">

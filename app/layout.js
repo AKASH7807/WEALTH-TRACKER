@@ -3,10 +3,11 @@ import "./font.css";
 
 import { Outfit, Josefin_Sans, Lexend } from "next/font/google";
 import Header from "@/components/header";
+import Footer from "@/components/footer";
+import FullscreenHandler from "@/components/fullscreen-handler";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
-import Link from "next/link";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -60,7 +61,18 @@ export default function RootLayout({ children }) {
         lang="en"
         className={`${outfit.variable} ${josefinSans.variable} ${lexend.variable}`}
       >
+        <head>
+          <meta name="mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+          <meta name="apple-mobile-web-app-title" content="Wealth" />
+          <meta name="application-name" content="Wealth" />
+          <meta name="msapplication-navbutton-color" content="#6366f1" />
+        </head>
         <body className="flex min-h-screen flex-col font-sans antialiased">
+          {/* Bridge & Fullscreen Handler for APK & Mobile WebViews */}
+          <FullscreenHandler />
+
           {/* Top progress bar for instant navigation feedback */}
           <NextTopLoader
             color="#6366f1"
@@ -83,52 +95,8 @@ export default function RootLayout({ children }) {
           {/* Toast Notifications */}
           <Toaster richColors />
 
-          {/* Footer */}
-          <footer className="bg-gradient-to-r from-white via-indigo-50 to-white border-t border-indigo-100">
-            <div className="max-w-7xl mx-auto px-6 py-10">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                {/* Brand */}
-                <div className="text-center md:text-left">
-                  <p className="text-lg font-semibold text-gray-900 tracking-wide">
-                    Wealth ERP
-                  </p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Smart finance & enterprise management
-                  </p>
-                </div>
-
-                {/* Links */}
-                <div className="flex items-center gap-6 text-sm text-gray-700">
-                  <Link
-                    href="/about"
-                    prefetch={true}
-                    className="hover:text-indigo-600 transition-colors duration-200"
-                  >
-                    About
-                  </Link>
-                  <Link
-                    href="/feature"
-                    prefetch={true}
-                    className="hover:text-indigo-600 transition-colors duration-200"
-                  >
-                    Features
-                  </Link>
-                  <Link
-                    href="/dashboard"
-                    prefetch={true}
-                    className="hover:text-indigo-600 transition-colors duration-200"
-                  >
-                    Dashboard
-                  </Link>
-                </div>
-
-                {/* Copyright */}
-                <div className="text-xs text-gray-500 text-center md:text-right">
-                  © {new Date().getFullYear()} Wealth ERP. All rights reserved.
-                </div>
-              </div>
-            </div>
-          </footer>
+          {/* Premium Footer */}
+          <Footer />
         </body>
       </html>
     </ClerkProvider>

@@ -3,7 +3,7 @@ import { AddTransactionForm } from "../_components/transaction-form";
 import { getTransaction, getUserDescriptionSuggestions } from "@/actions/transaction";
 import { getUserCategories } from "@/actions/categories";
 import Link from "next/link";
-import { ArrowLeft, PlusCircle, Edit3, Tag } from "lucide-react";
+import { ArrowLeft, PlusCircle, Edit3 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -37,14 +37,6 @@ export default async function AddTransactionPage({ searchParams }) {
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Back to Dashboard</span>
-          </Link>
-
-          <Link
-            href="/transaction/categories"
-            className="h-8 px-3 rounded-lg border border-indigo-200 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100/70 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-          >
-            <Tag className="h-3.5 w-3.5" />
-            <span>Manage Categories</span>
           </Link>
         </div>
 

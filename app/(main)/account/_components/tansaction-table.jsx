@@ -1,718 +1,1267 @@
 "use client";
 
-import {bulkDeleteTransactions} from "@/actions/accounts";
-import {Badge} from "@/components/ui/badge";
-import {Button} from "@/components/ui/button";
-import {Checkbox} from "@/components/ui/checkbox";
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { BarLoader } from "react-spinners";
+import { toast } from "sonner";
+import { bulkDeleteTransactions } from "@/actions/accounts";
+import useFetch from "@/hooks/use-fetch";
+import { categoryColors } from "@/data/categories";
+import { cn } from "@/lib/utils";
+
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {Input} from "@/components/ui/input";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-    Table,
-    TableBody,
-    TableCaption,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
-import {categoryColors} from "@/data/categories";
-import useFetch from "@/hooks/use-fetch";
-import {cn} from "@/lib/utils";
-import {format} from "date-fns";
 import {
-    ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    ChevronUp,
-    Clock,
-    MoreHorizontal,
-    RefreshCcw,
-    RefreshCw,
-    Search,
-    Trash,
-    X,
-    Download,
-    FileText
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+import {
+  Search,
+  SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  FileText,
+  Trash2,
+  Pencil,
+  RotateCcw,
+  Landmark,
+  MoreVertical,
+  X,
+  RefreshCw,
+  Clock,
+  List,
+  Table as TableIcon,
+  Check,
 } from "lucide-react";
-import {useRouter} from "next/navigation";
-import React, {useEffect, useMemo, useState} from "react";
-import {BarLoader} from "react-spinners";
-import {toast} from "sonner";
 
 const ITEMS_PER_PAGE = 10;
 
 const RECURRING_INTERVALS = {
-    DAILY: "Daily",
-    WEEKLY: "Weekly",
-    MONTHLY: "Monthly",
-    YEARLY: "Yearly"
+  DAILY: "Daily",
+  WEEKLY: "Weekly",
+  MONTHLY: "Monthly",
+  YEARLY: "Yearly",
 };
 
-export function TransactionTable({transactions}) {
-    const [selectedIds, setSelectedIds] = useState([]);
-    const [isMounted, setIsMounted] = useState(false);
-    
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
+// Format currency in Indian numbering (e.g., 3,500 or 45 or 3,500.50)
+function formatINR(amount) {
+  const num = Math.abs(Number(amount) || 0);
+  return num.toLocaleString("en-IN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
 
-    const [sortConfig, setSortConfig] = useState({field: "date", direction: "desc"});
-    const [searchTerm, setSearchTerm] = useState("");
-    const [typeFilter, setTypeFilter] = useState("");
-    const [recurringFilter, setRecurringFilter] = useState("");
-    const [categoryFilter, setCategoryFilter] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const router = useRouter();
+// Generate avatar matching the neo-banking screenshot
+function renderTransactionAvatar(transaction) {
+  const desc = (transaction.description || "").trim();
+  const lower = desc.toLowerCase();
 
-    // Unique categories present in these transactions for filtering
-    const availableCategories = useMemo(() => {
-        const cats = transactions.map((t) => t.category).filter(Boolean);
-        const unique = Array.from(new Set(cats));
-        return unique.sort((a, b) => a.localeCompare(b));
-    }, [transactions]);
-
-    // Memoized filtered and sorted transactions
-    const filteredAndSortedTransactions = useMemo(() => {
-        let result = [...transactions];
-
-        // Apply search filter
-        if (searchTerm) {
-            const searchLower = searchTerm.toLowerCase();
-            result = result.filter((transaction) => transaction.description ?. toLowerCase().includes(searchLower));
-        }
-
-        // Apply type filter
-        if (typeFilter && typeFilter !== "ALL") {
-            result = result.filter((transaction) => transaction.type === typeFilter);
-        }
-
-        // Apply category filter
-        if (categoryFilter && categoryFilter !== "ALL") {
-            result = result.filter((transaction) => transaction.category?.toLowerCase() === categoryFilter.toLowerCase());
-        }
-
-        // Apply recurring filter
-        if (recurringFilter && recurringFilter !== "ALL") {
-            result = result.filter((transaction) => {
-                if (recurringFilter === "recurring") 
-                    return transaction.isRecurring;
-                
-                return !transaction.isRecurring;
-            });
-        }
-
-        // Apply sorting
-        result.sort((a, b) => {
-            let comparison = 0;
-
-            switch (sortConfig.field) {
-                case "date": comparison = new Date(a.date) - new Date(b.date);
-                    break;
-                case "amount": comparison = a.amount - b.amount;
-                    break;
-                case "category": comparison = a.category.localeCompare(b.category);
-                    break;
-                default: comparison = 0;
-            }
-
-            return sortConfig.direction === "asc" ? comparison : - comparison;
-        });
-
-        return result;
-    }, [
-        transactions,
-        searchTerm,
-        typeFilter,
-        categoryFilter,
-        recurringFilter,
-        sortConfig
-    ]);
-
-    // Pagination calculations
-    const totalPages = Math.ceil(filteredAndSortedTransactions.length / ITEMS_PER_PAGE);
-    const paginatedTransactions = useMemo(() => {
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filteredAndSortedTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    }, [filteredAndSortedTransactions, currentPage]);
-
-    const handleSort = (field) => {
-        setSortConfig((current) => ({
-            field,
-            direction: current.field === field && current.direction === "asc" ? "desc" : "asc"
-        }));
-    };
-
-    const handleSelect = (id) => {
-        setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [
-            ...current,
-            id
-        ]);
-    };
-
-    const handleSelectAll = () => {
-        setSelectedIds((current) => current.length === paginatedTransactions.length ? [] : paginatedTransactions.map((t) => t.id));
-    };
-
-    const {loading: deleteLoading, fn: deleteFn, data: deleted} = useFetch(bulkDeleteTransactions);
-
-    const handleBulkDelete = async () => {
-        if (!window.confirm(`Are you sure you want to delete ${
-            selectedIds.length
-        } transactions?`)) 
-            return;
-        
-
-        deleteFn(selectedIds);
-    };
-
-    useEffect(() => {
-        if (deleted && !deleteLoading) {
-            toast.error("Transactions deleted successfully");
-        }
-    }, [deleted, deleteLoading]);
-
-    const handleClearFilters = () => {
-        setSearchTerm("");
-        setTypeFilter("");
-        setRecurringFilter("");
-        setCategoryFilter("");
-        setCurrentPage(1);
-    };
-
-    const handleDownload = () => {
-        try {
-            if (!transactions || transactions.length === 0) {
-                toast.error("No transactions to download");
-                return;
-            }
-
-            const headers = [
-                "Date",
-                "Description",
-                "Category",
-                "Type",
-                "Amount",
-                "Recurring",
-                "Next Recurring Date",
-            ];
-
-            const rows = transactions.map((t) => [
-                format(new Date(t.date), "PPP"),
-                t.description || "",
-                t.category || "",
-                t.type || "",
-                (t.type === "EXPENSE" ? "-" : "") + Number(t.amount).toFixed(2),
-                t.isRecurring ? "Yes" : "No",
-                t.isRecurring && t.nextRecurringDate ? format(new Date(t.nextRecurringDate), "PPP") : "",
-            ]);
-
-            const escapeCsv = (val) => `"${
-                String(val).replace(/"/g, '""')
-            }"`;
-            const csv = [
-                headers,
-                ... rows
-            ].map((r) => r.map(escapeCsv).join(",")).join("\r\n");
-
-            const bom = "\uFEFF";
-            const blob = new Blob([bom + csv], {type: "text/csv;charset=utf-8;"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            const now = new Date();
-            a.download = `transactions_${
-                now.toISOString().slice(0, 10)
-            }.csv`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-            toast("Download started");
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to export transactions");
-        }
-    };
-
-    const handleDownloadPDF = async () => {
-        try {
-            if (!transactions || transactions.length === 0) {
-                toast.error("No transactions to export");
-                return;
-            }
-
-            // dynamic import to keep bundle small
-            const {jsPDF} = await import ("jspdf");
-            await import ("jspdf-autotable");
-
-            const cols = [
-                "Date",
-                "Description",
-                "Category",
-                "Type",
-                "Amount",
-                "Recurring",
-                "Next Recurring Date"
-            ];
-            const rows = transactions.map((t) => [
-                format(new Date(t.date), "PPP"),
-                t.description || "",
-                t.category || "",
-                t.type || "",
-                (t.type === "EXPENSE" ? "-" : "") + Number(t.amount).toFixed(2),
-                t.isRecurring ? "Yes" : "No",
-                t.isRecurring && t.nextRecurringDate ? format(new Date(t.nextRecurringDate), "PPP") : "",
-            ]);
-
-            const doc = new jsPDF({unit: "pt", format: "a4"});
-            doc.setFontSize(10);
-
-            // autoTable with polished styling: grid theme, subtle header, alternating rows, footer
-            const margin = 40;
-            doc.autoTable({
-                startY: 70,
-                head: [cols],
-                body: rows,
-                theme: "grid",
-                styles: {
-                    fontSize: 9,
-                    textColor: [
-                        34, 34, 34
-                    ],
-                    lineColor: [
-                        200, 200, 200
-                    ],
-                    lineWidth: 0.5,
-                    cellPadding: 6
-                },
-                headStyles: {
-                    fillColor: [
-                        245, 245, 245
-                    ],
-                    textColor: [
-                        17, 17, 17
-                    ],
-                    fontStyle: "bold"
-                },
-                alternateRowStyles: {
-                    fillColor: [250, 250, 250]
-                },
-                columnStyles: {
-                    4: {
-                        halign: "right"
-                    }
-                },
-                margin: {
-                    left: margin,
-                    right: margin
-                },
-                didDrawPage: (data) => { // Header (title)
-                    doc.setFontSize(12);
-                    doc.setTextColor(17, 17, 17);
-                    doc.text("Transactions", margin, 40);
-
-                    // Footer (generated time + page number)
-                    const pageSize = doc.internal.pageSize;
-                    const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
-                    doc.setFontSize(9);
-                    doc.setTextColor(120, 120, 120);
-                    const leftFooter = `Generated: ${
-                        new Date().toLocaleString()
-                    }`;
-                    doc.text(leftFooter, margin, pageHeight - 30);
-                    const rightFooter = `Page ${
-                        data.pageNumber
-                    }`;
-                    doc.text(rightFooter, pageSize.getWidth() - margin - doc.getTextWidth(rightFooter), pageHeight - 30);
-                }
-            });
-
-            const now = new Date().toISOString().slice(0, 10);
-            doc.save(`transactions_${now}.pdf`);
-            toast("PDF downloaded");
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to generate PDF");
-        }
-    };
-
-    const handlePageChange = (newPage) => {
-        setCurrentPage(newPage);
-        setSelectedIds([]); // Clear selections on page change
-    };
-
-    // JSX MAIN
-    if (!isMounted) return null;
-    
+  // Special "slice" styling from screenshot
+  if (lower === "slice") {
     return (
-        <div className="space-y-4">
-            {
-            deleteLoading && (
-                <BarLoader className="mt-4"
-                    width={"100%"}
-                    color="#9333ea"/>
-            )
-        }
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"/>
-                    <Input placeholder="Search transactions..."
-                        value={searchTerm}
-                        onChange={
-                            (e) => {
-                                setSearchTerm(e.target.value);
-                                setCurrentPage(1);
-                            }
-                        }
-                        className="pl-8"/>
-                </div>
-            <div className="flex flex-col sm:flex-row gap-2 items-start w-full">
-                <div className="w-full sm:w-auto">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button size="sm" className="w-full sm:w-auto bg-lime-500 hover:bg-lime-600 text-white border-0 flex items-center justify-center">
-                                <Download className="h-4 w-4 mr-2"/>
-                                Download
-                                <ChevronDown className="ml-2 h-4 w-4"/>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                            <DropdownMenuItem onClick={handleDownload}>
-                                <Download className="h-4 w-4 mr-2"/>
-                                Download CSV (Excel)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleDownloadPDF}>
-                                <FileText className="h-4 w-4 mr-2"/>
-                                Download PDF (Print view)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
-                    {/* Type Filter */}
-                    <div className="w-full">
-                        <Select value={typeFilter}
-                            onValueChange={
-                                (value) => {
-                                    setTypeFilter(value === "ALL" ? "" : value);
-                                    setCurrentPage(1);
-                                }
-                        }>
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="All Types"/>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">All Types</SelectItem>
-                                <SelectItem value="INCOME">Income</SelectItem>
-                                <SelectItem value="EXPENSE">Expense</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    {/* Category Filter */}
-                    <div className="w-full">
-                        <Select value={categoryFilter}
-                            onValueChange={
-                                (value) => {
-                                    setCategoryFilter(value === "ALL" ? "" : value);
-                                    setCurrentPage(1);
-                                }
-                        }>
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="All Categories"/>
-                            </SelectTrigger>
-                            <SelectContent className="max-h-60">
-                                <SelectItem value="ALL">All Categories</SelectItem>
-                                {availableCategories.map((cat) => (
-                                    <SelectItem key={cat} value={cat} className="capitalize">
-                                        <div className="flex items-center gap-2">
-                                            <span
-                                                className="h-2 w-2 rounded-full inline-block shrink-0"
-                                                style={{
-                                                    backgroundColor: categoryColors[cat] || "#6366f1"
-                                                }}
-                                            />
-                                            <span>{cat.replace(/-/g, " ")}</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    {/* Recurring Filter */}
-                    <div className="w-full">
-                        <Select value={recurringFilter}
-                            onValueChange={
-                                (value) => {
-                                    setRecurringFilter(value === "ALL" ? "" : value);
-                                    setCurrentPage(1);
-                                }
-                        }>
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="All Transactions"/>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">All Transactions</SelectItem>
-                                <SelectItem value="recurring">Recurring Only</SelectItem>
-                                <SelectItem value="non-recurring">Non-recurring Only</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-
-                {/* Bulk Actions */}
-                {
-                selectedIds.length > 0 && (
-                    <div className="flex items-center gap-2">
-                        <Button variant="destructive" size="sm"
-                            onClick={handleBulkDelete}>
-                            <Trash className="h-4 w-4 mr-2"/>
-                            Delete Selected ({
-                            selectedIds.length
-                        })
-                        </Button>
-                    </div>
-                )
-            }
-
-                {
-                (searchTerm || typeFilter || recurringFilter || categoryFilter) && (
-                    <Button variant="outline" size="icon"
-                        onClick={handleClearFilters}
-                        title="Clear filters">
-                        <X className="h-4 w-5"/>
-                    </Button>
-                )
-            } </div>
-        </div>
-
-        {/* Transactions Table */}
-        <div className="rounded-md border">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-[50px]">
-                            <Checkbox checked={
-                                    selectedIds.length === paginatedTransactions.length && paginatedTransactions.length > 0
-                                }
-                                onCheckedChange={handleSelectAll}/>
-                        </TableHead>
-                        <TableHead className="cursor-pointer"
-                            onClick={
-                                () => handleSort("date")
-                        }>
-                            <div className="flex items-center">
-                                Date {
-                                sortConfig.field === "date" && (sortConfig.direction === "asc" ? (
-                                    <ChevronUp className="ml-1 h-4 w-4"/>
-                                ) : (
-                                    <ChevronDown className="ml-1 h-4 w-4"/>
-                                ))
-                            } </div>
-                        </TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="cursor-pointer"
-                            onClick={
-                                () => handleSort("category")
-                        }>
-                            <div className="flex items-center">
-                                Category {
-                                sortConfig.field === "category" && (sortConfig.direction === "asc" ? (
-                                    <ChevronUp className="ml-1 h-4 w-4"/>
-                                ) : (
-                                    <ChevronDown className="ml-1 h-4 w-4"/>
-                                ))
-                            } </div>
-                        </TableHead>
-                        <TableHead className="cursor-pointer text-right"
-                            onClick={
-                                () => handleSort("amount")
-                        }>
-                            <div className="flex items-center justify-end">
-                                Amount {
-                                sortConfig.field === "amount" && (sortConfig.direction === "asc" ? (
-                                    <ChevronUp className="ml-1 h-4 w-4"/>
-                                ) : (
-                                    <ChevronDown className="ml-1 h-4 w-4"/>
-                                ))
-                            } </div>
-                        </TableHead>
-                        <TableHead>Recurring</TableHead>
-                        <TableHead className="w-[50px]"/>
-                    </TableRow>
-                </TableHeader>
-                <TableBody> {
-                    paginatedTransactions.length === 0 ? (
-                        <TableRow>
-                            <TableCell colSpan={7}
-                                className="text-center text-muted-foreground">
-                                No transactions found
-                            </TableCell>
-                        </TableRow>
-                    ) : (paginatedTransactions.map((transaction) => (
-                        <TableRow key={
-                            transaction.id
-                        }>
-                            <TableCell>
-                                <Checkbox checked={
-                                        selectedIds.includes(transaction.id)
-                                    }
-                                    onCheckedChange={
-                                        () => handleSelect(transaction.id)
-                                    }/>
-                            </TableCell>
-                            <TableCell> {
-                                format(new Date(transaction.date), "PP")
-                            } </TableCell>
-                            <TableCell> {/* Desktop / Tablet → Full text */}
-                                <span className="hidden sm:inline">
-                                    {
-                                    transaction.description
-                                } </span>
-
-                                {/* Mobile → Truncated with native tooltip */}
-                                <span className="sm:hidden">
-                                    {
-                                    transaction.description ?. length > 10 ? (
-                                        <span className="cursor-pointer"
-                                            title={
-                                                transaction.description
-                                        }>
-                                            {
-                                            transaction.description.slice(0, 10)
-                                        }...
-                                        </span>
-                                    ) : (transaction.description)
-                                } </span>
-                            </TableCell>
-
-                            <TableCell className="capitalize">
-                                <span style={
-                                        {
-                                            background: categoryColors[transaction.category] || "#6366f1"
-                                        }
-                                    }
-                                    className="px-2 py-1 rounded text-white text-sm">
-                                    {
-                                    transaction.category
-                                } </span>
-                            </TableCell>
-                            <TableCell className={
-                                cn("text-right font-medium", transaction.type === "EXPENSE" ? "text-red-500" : "text-green-500")
-                            }>
-                                {
-                                transaction.type === "EXPENSE" ? "-" : "+"
-                            }
-                                {
-                                `₹${
-                                    transaction.amount.toFixed(2)
-                                }`
-                            } </TableCell>
-                            <TableCell> {
-                                transaction.isRecurring ? (
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <Badge variant="secondary" className="gap-1 bg-purple-100 text-purple-700 hover:bg-purple-200">
-                                                    <RefreshCw className="h-3 w-3"/> {
-                                                    RECURRING_INTERVALS[transaction.recurringInterval]
-                                                } </Badge>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <div className="text-sm">
-                                                    <div className="font-medium">Next Date:</div>
-                                                    <div> {
-                                                        format(new Date(transaction.nextRecurringDate), "PPP")
-                                                    } </div>
-                                                </div>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                ) : (
-                                    <Badge variant="outline" className="gap-1">
-                                        <Clock className="h-3 w-3"/>
-                                        One-time
-                                    </Badge>
-                                )
-                            } </TableCell>
-                            <TableCell>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                            <MoreHorizontal className="h-4 w-4"/>
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={
-                                            () => router.push(`/transaction/create?edit=${
-                                                transaction.id
-                                            }`)
-                                        }>
-                                            Edit
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator/>
-                                        <DropdownMenuItem className="text-destructive"
-                                            onClick={
-                                                () => deleteFn([transaction.id])
-                                        }>
-                                            Delete
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </TableCell>
-                        </TableRow>
-                    )))
-                } </TableBody>
-            </Table>
-        </div>
-
-        {/* Pagination */}
-        {
-        totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-                <Button variant="outline" size="icon"
-                    onClick={
-                        () => handlePageChange(currentPage - 1)
-                    }
-                    disabled={
-                        currentPage === 1
-                }>
-                    <ChevronLeft className="h-4 w-4"/>
-                </Button>
-                <span className="text-sm">
-                    Page {currentPage}
-                    of {totalPages} </span>
-                <Button variant="outline" size="icon"
-                    onClick={
-                        () => handlePageChange(currentPage + 1)
-                    }
-                    disabled={
-                        currentPage === totalPages
-                }>
-                    <ChevronRight className="h-4 w-4"/>
-                </Button>
-            </div>
-        )
-    } </div>
+      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#7C3AED] text-white flex items-center justify-center font-bold text-xs tracking-tight shadow-xs shrink-0 select-none">
+        slice
+      </div>
     );
+  }
+
+  // Special "bank transfer" styling from screenshot
+  if (lower.includes("bank transfer") || lower.includes("transfer")) {
+    return (
+      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs shrink-0 select-none">
+        <Landmark className="h-5 w-5" />
+      </div>
+    );
+  }
+
+  // Special "repayment" styling from screenshot
+  if (lower.includes("repayment") || transaction.isRecurring) {
+    return (
+      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#84cc16] text-white flex items-center justify-center shadow-xs shrink-0 select-none">
+        <RotateCcw className="h-5 w-5" />
+      </div>
+    );
+  }
+
+  // Deterministic pastel palette for recipient initials (matching screenshot's R, H, A)
+  const palettes = [
+    "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200", // R
+    "bg-pink-100 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300",  // H
+    "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300",  // A
+    "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
+    "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300",
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
+    "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300",
+  ];
+
+  const firstChar = desc.charAt(0).toUpperCase() || (transaction.type === "INCOME" ? "I" : "E");
+  const charCode = firstChar.charCodeAt(0) || 0;
+  const palette = palettes[charCode % palettes.length];
+
+  return (
+    <div
+      className={cn(
+        "w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-base sm:text-lg shadow-xs shrink-0 select-none",
+        palette
+      )}
+    >
+      {firstChar}
+    </div>
+  );
+}
+
+export function TransactionTable({ transactions = [] }) {
+  const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
+
+  // View state: 'activity' (default) or 'table'
+  const [viewMode, setViewMode] = useState("activity");
+
+  // Selection mode & selected IDs
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // Filtering & Sorting
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [recurringFilter, setRecurringFilter] = useState("");
+  const [sortConfig, setSortConfig] = useState({ field: "date", direction: "desc" });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+
+  // Action Dialog state (for mobile hold / desktop click)
+  const [actionTransaction, setActionTransaction] = useState(null);
+
+  // Long press timer refs for mobile
+  const timerRef = useRef(null);
+  const isLongPressRef = useRef(false);
+  const touchStartPos = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Unique categories in transactions
+  const availableCategories = useMemo(() => {
+    const cats = transactions.map((t) => t.category).filter(Boolean);
+    const unique = Array.from(new Set(cats));
+    return unique.sort((a, b) => a.localeCompare(b));
+  }, [transactions]);
+
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (typeFilter && typeFilter !== "ALL") count++;
+    if (categoryFilter && categoryFilter !== "ALL") count++;
+    if (recurringFilter && recurringFilter !== "ALL") count++;
+    return count;
+  }, [typeFilter, categoryFilter, recurringFilter]);
+
+  // Memoized filtered and sorted transactions
+  const filteredAndSortedTransactions = useMemo(() => {
+    let result = [...transactions];
+
+    // Search filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      result = result.filter((t) =>
+        t.description?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Type filter
+    if (typeFilter && typeFilter !== "ALL") {
+      result = result.filter((t) => t.type === typeFilter);
+    }
+
+    // Category filter
+    if (categoryFilter && categoryFilter !== "ALL") {
+      result = result.filter(
+        (t) => t.category?.toLowerCase() === categoryFilter.toLowerCase()
+      );
+    }
+
+    // Recurring filter
+    if (recurringFilter && recurringFilter !== "ALL") {
+      result = result.filter((t) => {
+        if (recurringFilter === "recurring") return t.isRecurring;
+        return !t.isRecurring;
+      });
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      let comparison = 0;
+      switch (sortConfig.field) {
+        case "date":
+          comparison = new Date(a.date) - new Date(b.date);
+          break;
+        case "amount":
+          comparison = Number(a.amount) - Number(b.amount);
+          break;
+        case "category":
+          comparison = (a.category || "").localeCompare(b.category || "");
+          break;
+        default:
+          comparison = 0;
+      }
+      return sortConfig.direction === "asc" ? comparison : -comparison;
+    });
+
+    return result;
+  }, [
+    transactions,
+    searchTerm,
+    typeFilter,
+    categoryFilter,
+    recurringFilter,
+    sortConfig,
+  ]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredAndSortedTransactions.length / ITEMS_PER_PAGE);
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredAndSortedTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredAndSortedTransactions, currentPage]);
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    setSelectedIds([]);
+  };
+
+  const handleSort = (field) => {
+    setSortConfig((current) => ({
+      field,
+      direction: current.field === field && current.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const handleSelect = (id) => {
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    setSelectedIds((current) =>
+      current.length === paginatedTransactions.length
+        ? []
+        : paginatedTransactions.map((t) => t.id)
+    );
+  };
+
+  // Bulk delete hook
+  const { loading: deleteLoading, fn: deleteFn, data: deleted } = useFetch(bulkDeleteTransactions);
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    if (
+      !window.confirm(
+        `Are you sure you want to delete ${selectedIds.length} transaction${
+          selectedIds.length > 1 ? "s" : ""
+        }?`
+      )
+    )
+      return;
+
+    await deleteFn(selectedIds);
+    setSelectedIds([]);
+  };
+
+  const handleDeleteSingle = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this transaction?")) return;
+    await deleteFn([id]);
+    setActionTransaction(null);
+  };
+
+  useEffect(() => {
+    if (deleted && !deleteLoading) {
+      toast.success("Transaction(s) deleted successfully");
+    }
+  }, [deleted, deleteLoading]);
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setTypeFilter("");
+    setRecurringFilter("");
+    setCategoryFilter("");
+    setCurrentPage(1);
+  };
+
+  // Mobile Hold / Long Press handlers
+  const handleTouchStart = (transaction, e) => {
+    if (isSelectMode) return;
+    isLongPressRef.current = false;
+    if (e.touches && e.touches[0]) {
+      touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    timerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      if (typeof window !== "undefined" && window.navigator?.vibrate) {
+        try {
+          window.navigator.vibrate(40);
+        } catch (err) {}
+      }
+      setActionTransaction(transaction);
+    }, 500);
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches && e.touches[0]) {
+      const dx = Math.abs(e.touches[0].clientX - touchStartPos.current.x);
+      const dy = Math.abs(e.touches[0].clientY - touchStartPos.current.y);
+      // Cancel long-press if user moves finger more than 10px (scrolling)
+      if (dx > 10 || dy > 10) {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const handleRowClick = (transaction) => {
+    if (isSelectMode) {
+      handleSelect(transaction.id);
+    } else {
+      setActionTransaction(transaction);
+    }
+  };
+
+  // CSV Export
+  const handleDownloadCSV = () => {
+    try {
+      if (!transactions || transactions.length === 0) {
+        toast.error("No transactions to export");
+        return;
+      }
+
+      const headers = [
+        "Date",
+        "Description",
+        "Category",
+        "Type",
+        "Amount",
+        "Recurring",
+        "Next Recurring Date",
+      ];
+
+      const rows = transactions.map((t) => [
+        format(new Date(t.date), "PPP"),
+        t.description || "",
+        t.category || "",
+        t.type || "",
+        (t.type === "EXPENSE" ? "-" : "") + Number(t.amount).toFixed(2),
+        t.isRecurring ? "Yes" : "No",
+        t.isRecurring && t.nextRecurringDate ? format(new Date(t.nextRecurringDate), "PPP") : "",
+      ]);
+
+      const escapeCsv = (val) => `"${String(val).replace(/"/g, '""')}"`;
+      const csv = [headers, ...rows].map((r) => r.map(escapeCsv).join(",")).join("\r\n");
+
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const now = new Date();
+      a.download = `transactions_${now.toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("CSV export downloaded");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export transactions");
+    }
+  };
+
+  // PDF Export
+  const handleDownloadPDF = async () => {
+    try {
+      if (!transactions || transactions.length === 0) {
+        toast.error("No transactions to export");
+        return;
+      }
+
+      const { jsPDF } = await import("jspdf");
+      await import("jspdf-autotable");
+
+      const cols = [
+        "Date",
+        "Description",
+        "Category",
+        "Type",
+        "Amount",
+        "Recurring",
+        "Next Recurring Date",
+      ];
+      const rows = transactions.map((t) => [
+        format(new Date(t.date), "PPP"),
+        t.description || "",
+        t.category || "",
+        t.type || "",
+        (t.type === "EXPENSE" ? "-" : "") + Number(t.amount).toFixed(2),
+        t.isRecurring ? "Yes" : "No",
+        t.isRecurring && t.nextRecurringDate ? format(new Date(t.nextRecurringDate), "PPP") : "",
+      ]);
+
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      doc.setFontSize(10);
+
+      const margin = 40;
+      doc.autoTable({
+        startY: 70,
+        head: [cols],
+        body: rows,
+        theme: "grid",
+        styles: {
+          fontSize: 9,
+          textColor: [34, 34, 34],
+          lineColor: [200, 200, 200],
+          lineWidth: 0.5,
+          cellPadding: 6,
+        },
+        headStyles: {
+          fillColor: [245, 245, 245],
+          textColor: [17, 17, 17],
+          fontStyle: "bold",
+        },
+        alternateRowStyles: {
+          fillColor: [250, 250, 250],
+        },
+        columnStyles: {
+          4: { halign: "right" },
+        },
+        margin: { left: margin, right: margin },
+        didDrawPage: (data) => {
+          doc.setFontSize(12);
+          doc.setTextColor(17, 17, 17);
+          doc.text("Transactions Activity", margin, 40);
+
+          const pageSize = doc.internal.pageSize;
+          const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+          doc.setFontSize(9);
+          doc.setTextColor(120, 120, 120);
+          const leftFooter = `Generated: ${new Date().toLocaleString()}`;
+          doc.text(leftFooter, margin, pageHeight - 30);
+          const rightFooter = `Page ${data.pageNumber}`;
+          doc.text(
+            rightFooter,
+            pageSize.getWidth() - margin - doc.getTextWidth(rightFooter),
+            pageHeight - 30
+          );
+        },
+      });
+
+      const now = new Date().toISOString().slice(0, 10);
+      doc.save(`transactions_${now}.pdf`);
+      toast.success("PDF report downloaded");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate PDF");
+    }
+  };
+
+  if (!isMounted) return null;
+
+  return (
+    <div className="space-y-4">
+      {deleteLoading && (
+        <BarLoader className="mt-2 rounded-full" width={"100%"} color="#9333ea" />
+      )}
+
+      {/* Top Activity Header matching the screenshot */}
+      <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center gap-2.5">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Activity
+          </h2>
+          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300">
+            {filteredAndSortedTransactions.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Select Mode Toggle */}
+          <Button
+            variant={isSelectMode ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => {
+              setIsSelectMode(!isSelectMode);
+              setSelectedIds([]);
+            }}
+            className="rounded-full h-8 sm:h-9 px-3 text-xs font-semibold"
+          >
+            {isSelectMode ? "Cancel" : "Select"}
+          </Button>
+
+          {/* Export Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full h-8 sm:h-9 px-3 gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Export</span>
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl shadow-lg">
+              <DropdownMenuItem onClick={handleDownloadCSV} className="text-xs font-medium cursor-pointer">
+                <Download className="h-3.5 w-3.5 mr-2 text-emerald-600" />
+                Export CSV (Excel)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadPDF} className="text-xs font-medium cursor-pointer">
+                <FileText className="h-3.5 w-3.5 mr-2 text-rose-600" />
+                Export PDF Document
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* View Mode Toggle: Activity vs Table */}
+          <div className="hidden md:flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
+            <button
+              onClick={() => setViewMode("activity")}
+              className={cn(
+                "p-1.5 rounded-full text-xs font-medium transition-all",
+                viewMode === "activity"
+                  ? "bg-white dark:bg-slate-900 text-purple-600 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              )}
+              title="Feed View"
+            >
+              <List className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode("table")}
+              className={cn(
+                "p-1.5 rounded-full text-xs font-medium transition-all",
+                viewMode === "table"
+                  ? "bg-white dark:bg-slate-900 text-purple-600 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              )}
+              title="Table View"
+            >
+              <TableIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Search Bar + Circular Filter Button (Matching Screenshot) */}
+      <div className="flex items-center gap-2.5">
+        {/* Pill-shaped search bar with purple accent border */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Input
+            placeholder="Search transactions"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full h-11 pl-10 pr-9 rounded-full border-2 border-purple-500 focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:border-purple-600 text-sm bg-white dark:bg-slate-900 placeholder:text-slate-400 text-slate-900 dark:text-slate-100 shadow-xs"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Circular Filter Button */}
+        <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "h-11 w-11 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-xs relative shrink-0",
+                activeFilterCount > 0 && "border-purple-500 text-purple-600 bg-purple-50/40 dark:bg-purple-950/40"
+              )}
+              title="Filter transactions"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 sm:w-88 p-4 rounded-2xl shadow-xl border-slate-200 dark:border-slate-800">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                  Filter & Sort
+                </span>
+                {activeFilterCount > 0 && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="text-xs font-semibold text-purple-600 hover:text-purple-700 dark:text-purple-400"
+                  >
+                    Reset all
+                  </button>
+                )}
+              </div>
+
+              {/* Type Filter */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  Transaction Type
+                </label>
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                  {["ALL", "INCOME", "EXPENSE"].map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => {
+                        setTypeFilter(type === "ALL" ? "" : type);
+                        setCurrentPage(1);
+                      }}
+                      className={cn(
+                        "py-1.5 text-xs font-medium rounded-lg capitalize transition-all",
+                        (type === "ALL" && !typeFilter) || typeFilter === type
+                          ? "bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 font-bold shadow-xs"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                      )}
+                    >
+                      {type === "ALL" ? "All" : type.toLowerCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Category Filter */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  Category
+                </label>
+                <Select
+                  value={categoryFilter || "ALL"}
+                  onValueChange={(val) => {
+                    setCategoryFilter(val === "ALL" ? "" : val);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-full h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-56 rounded-xl">
+                    <SelectItem value="ALL">All Categories</SelectItem>
+                    {availableCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat} className="capitalize text-xs">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2 w-2 rounded-full inline-block shrink-0"
+                            style={{ backgroundColor: categoryColors[cat] || "#6366f1" }}
+                          />
+                          <span>{cat.replace(/-/g, " ")}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Recurring Filter */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  Frequency
+                </label>
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                  {[
+                    { id: "ALL", label: "All" },
+                    { id: "recurring", label: "Recurring" },
+                    { id: "non-recurring", label: "One-time" },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setRecurringFilter(item.id === "ALL" ? "" : item.id);
+                        setCurrentPage(1);
+                      }}
+                      className={cn(
+                        "py-1.5 text-xs font-medium rounded-lg transition-all",
+                        (item.id === "ALL" && !recurringFilter) || recurringFilter === item.id
+                          ? "bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 font-bold shadow-xs"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                      )}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sort Configuration */}
+              <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  Sort By
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { field: "date", label: "Date" },
+                    { field: "amount", label: "Amount" },
+                    { field: "category", label: "Category" },
+                  ].map((item) => {
+                    const isSelected = sortConfig.field === item.field;
+                    return (
+                      <button
+                        key={item.field}
+                        type="button"
+                        onClick={() => handleSort(item.field)}
+                        className={cn(
+                          "py-1.5 px-2 text-xs font-medium rounded-lg border flex items-center justify-center gap-1 transition-all",
+                          isSelected
+                            ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-bold"
+                            : "border-slate-200 dark:border-slate-800 hover:bg-slate-50"
+                        )}
+                      >
+                        <span>{item.label}</span>
+                        {isSelected && (
+                          sortConfig.direction === "asc" ? (
+                            <ChevronUp className="h-3 w-3" />
+                          ) : (
+                            <ChevronDown className="h-3 w-3" />
+                          )
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Active Filter Chips */}
+      {(typeFilter || categoryFilter || recurringFilter || searchTerm) && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          {searchTerm && (
+            <Badge variant="secondary" className="gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-normal">
+              "{searchTerm}"
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setSearchTerm("")} />
+            </Badge>
+          )}
+          {typeFilter && (
+            <Badge variant="secondary" className="gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-normal capitalize">
+              Type: {typeFilter.toLowerCase()}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setTypeFilter("")} />
+            </Badge>
+          )}
+          {categoryFilter && (
+            <Badge variant="secondary" className="gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-normal capitalize">
+              Category: {categoryFilter.replace(/-/g, " ")}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setCategoryFilter("")} />
+            </Badge>
+          )}
+          {recurringFilter && (
+            <Badge variant="secondary" className="gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-normal">
+              {recurringFilter === "recurring" ? "Recurring" : "One-time"}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setRecurringFilter("")} />
+            </Badge>
+          )}
+          <button
+            onClick={handleClearFilters}
+            className="text-[11px] text-muted-foreground hover:text-foreground font-medium underline ml-1"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Action Banner when in Select Mode */}
+      {isSelectMode && (
+        <div className="flex items-center justify-between p-3 bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900 rounded-2xl animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              checked={
+                selectedIds.length === paginatedTransactions.length &&
+                paginatedTransactions.length > 0
+              }
+              onCheckedChange={handleSelectAll}
+            />
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Select All on this page ({selectedIds.length} selected)
+            </span>
+          </div>
+
+          {selectedIds.length > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+              className="rounded-full h-8 px-3 text-xs gap-1.5"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete ({selectedIds.length})
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* VIEW 1: Activity Feed (Default & matches Screenshot) */}
+      {viewMode === "activity" ? (
+        <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs divide-y divide-slate-100 dark:divide-slate-800/80 overflow-hidden">
+          {paginatedTransactions.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground space-y-2">
+              <p className="text-sm font-medium">No transactions found</p>
+              {(searchTerm || typeFilter || categoryFilter || recurringFilter) && (
+                <Button variant="outline" size="sm" onClick={handleClearFilters} className="rounded-full">
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          ) : (
+            paginatedTransactions.map((transaction) => {
+              const isIncome = transaction.type === "INCOME";
+              const isSelected = selectedIds.includes(transaction.id);
+
+              return (
+                <div
+                  key={transaction.id}
+                  onTouchStart={(e) => handleTouchStart(transaction, e)}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setActionTransaction(transaction);
+                  }}
+                  onClick={() => handleRowClick(transaction)}
+                  className={cn(
+                    "flex items-center justify-between p-3.5 sm:p-4 transition-colors cursor-pointer select-none active:bg-slate-50 dark:active:bg-slate-800/60 hover:bg-slate-50/80 dark:hover:bg-slate-800/40",
+                    isSelected && "bg-purple-50/60 dark:bg-purple-950/30"
+                  )}
+                >
+                  {/* Left: Avatar + Title + Subtitle */}
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    {/* Checkbox if in Select Mode */}
+                    {isSelectMode && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleSelect(transaction.id)}
+                        />
+                      </div>
+                    )}
+
+                    {/* Circular Avatar */}
+                    {renderTransactionAvatar(transaction)}
+
+                    {/* Details: Title & Subtitle */}
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base leading-snug truncate">
+                        {transaction.description || "Untitled Transaction"}
+                      </div>
+                      <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5">
+                        {/* Date formatted as: 2 Oct '26 */}
+                        <span>
+                          {format(new Date(transaction.date), "d MMM ''yy")}
+                        </span>
+                        <span>•</span>
+                        {/* Category */}
+                        <span className="capitalize truncate max-w-[120px] sm:max-w-[200px]">
+                          {transaction.category?.replace(/-/g, " ")}
+                        </span>
+                        {/* Recurring badge if recurring */}
+                        {transaction.isRecurring && (
+                          <>
+                            <span>•</span>
+                            <span className="inline-flex items-center gap-0.5 text-purple-600 dark:text-purple-400 font-semibold">
+                              <RefreshCw className="h-2.5 w-2.5" />
+                              <span className="text-[10px]">
+                                {RECURRING_INTERVALS[transaction.recurringInterval] || "Recurring"}
+                              </span>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Amount & Action dots */}
+                  <div className="flex items-center gap-3 shrink-0 pl-3">
+                    <div className="text-right">
+                      <div
+                        className={cn(
+                          "font-bold text-base sm:text-lg tracking-tight",
+                          isIncome
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-rose-600 dark:text-rose-400"
+                        )}
+                      >
+                        {isIncome ? "+" : "-"}₹{formatINR(transaction.amount)}
+                      </div>
+                    </div>
+
+                    {/* 3-dots action trigger (opens Action Dialog) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActionTransaction(transaction);
+                      }}
+                      className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      title="Options"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      ) : (
+        /* VIEW 2: Desktop Spreadsheet Table View */
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50/50 dark:bg-slate-800/50">
+                <TableHead className="w-[45px]">
+                  <Checkbox
+                    checked={
+                      selectedIds.length === paginatedTransactions.length &&
+                      paginatedTransactions.length > 0
+                    }
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer font-bold"
+                  onClick={() => handleSort("date")}
+                >
+                  <div className="flex items-center">
+                    Date
+                    {sortConfig.field === "date" &&
+                      (sortConfig.direction === "asc" ? (
+                        <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                      ))}
+                  </div>
+                </TableHead>
+                <TableHead className="font-bold">Description</TableHead>
+                <TableHead
+                  className="cursor-pointer font-bold"
+                  onClick={() => handleSort("category")}
+                >
+                  <div className="flex items-center">
+                    Category
+                    {sortConfig.field === "category" &&
+                      (sortConfig.direction === "asc" ? (
+                        <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                      ))}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer font-bold text-right"
+                  onClick={() => handleSort("amount")}
+                >
+                  <div className="flex items-center justify-end">
+                    Amount
+                    {sortConfig.field === "amount" &&
+                      (sortConfig.direction === "asc" ? (
+                        <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                      ))}
+                  </div>
+                </TableHead>
+                <TableHead className="font-bold">Recurring</TableHead>
+                <TableHead className="w-[45px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedTransactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    No transactions found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedTransactions.map((transaction) => {
+                  const isIncome = transaction.type === "INCOME";
+                  return (
+                    <TableRow key={transaction.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.includes(transaction.id)}
+                          onCheckedChange={() => handleSelect(transaction.id)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium text-xs">
+                        {format(new Date(transaction.date), "d MMM ''yy")}
+                      </TableCell>
+                      <TableCell className="font-semibold text-slate-900 dark:text-slate-100">
+                        {transaction.description}
+                      </TableCell>
+                      <TableCell className="capitalize">
+                        <span
+                          style={{
+                            backgroundColor:
+                              categoryColors[transaction.category] || "#6366f1",
+                          }}
+                          className="px-2 py-0.5 rounded text-white text-xs font-medium inline-block"
+                        >
+                          {transaction.category?.replace(/-/g, " ")}
+                        </span>
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right font-bold",
+                          isIncome
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-rose-600 dark:text-rose-400"
+                        )}
+                      >
+                        {isIncome ? "+" : "-"}₹{formatINR(transaction.amount)}
+                      </TableCell>
+                      <TableCell>
+                        {transaction.isRecurring ? (
+                          <Badge variant="secondary" className="gap-1 bg-purple-100 text-purple-700">
+                            <RefreshCw className="h-3 w-3" />
+                            {RECURRING_INTERVALS[transaction.recurringInterval]}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="gap-1">
+                            <Clock className="h-3 w-3" />
+                            One-time
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                router.push(`/transaction/create?edit=${transaction.id}`)
+                              }
+                            >
+                              <Pencil className="h-3.5 w-3.5 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => handleDeleteSingle(transaction.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2 px-1">
+          <span className="text-xs text-muted-foreground font-medium">
+            Page {currentPage} of {totalPages}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="rounded-full h-8 px-2.5 text-xs"
+            >
+              <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+              Prev
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="rounded-full h-8 px-2.5 text-xs"
+            >
+              Next
+              <ChevronRight className="h-3.5 w-3.5 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Action Dialog (Mobile Long-Press & Desktop Click) */}
+      <Dialog
+        open={!!actionTransaction}
+        onOpenChange={(open) => !open && setActionTransaction(null)}
+      >
+        <DialogContent className="sm:max-w-md p-6 rounded-3xl">
+          <DialogHeader className="text-left">
+            <DialogTitle className="text-lg font-bold text-slate-900 dark:text-slate-100">
+              Transaction Details
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Review details or choose an action below.
+            </DialogDescription>
+          </DialogHeader>
+
+          {actionTransaction && (
+            <div className="space-y-4 py-2">
+              {/* Transaction Summary Card */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl flex items-center justify-between border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  {renderTransactionAvatar(actionTransaction)}
+                  <div className="min-w-0">
+                    <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate">
+                      {actionTransaction.description || "Untitled Transaction"}
+                    </h4>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                      <span>
+                        {format(new Date(actionTransaction.date), "d MMM ''yy")}
+                      </span>
+                      <span>•</span>
+                      <span className="capitalize">
+                        {actionTransaction.category?.replace(/-/g, " ")}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0 pl-3">
+                  <span
+                    className={cn(
+                      "font-bold text-lg",
+                      actionTransaction.type === "INCOME"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
+                    )}
+                  >
+                    {actionTransaction.type === "INCOME" ? "+" : "-"}₹
+                    {formatINR(actionTransaction.amount)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Recurring information if active */}
+              {actionTransaction.isRecurring && (
+                <div className="text-xs bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 p-2.5 rounded-xl flex items-center gap-2 border border-purple-100 dark:border-purple-900/50">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>
+                    Recurring {RECURRING_INTERVALS[actionTransaction.recurringInterval] || ""}
+                    {actionTransaction.nextRecurringDate &&
+                      ` (Next: ${format(new Date(actionTransaction.nextRecurringDate), "PPP")})`}
+                  </span>
+                </div>
+              )}
+
+              {/* Action Buttons: Edit & Delete */}
+              <div className="grid grid-cols-1 gap-2.5 pt-2">
+                <Button
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-5 rounded-xl flex items-center justify-center gap-2 shadow-sm"
+                  onClick={() => {
+                    const id = actionTransaction.id;
+                    setActionTransaction(null);
+                    router.push(`/transaction/create?edit=${id}`);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit Transaction
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/50 dark:hover:bg-rose-950/40 font-semibold py-5 rounded-xl flex items-center justify-center gap-2"
+                  onClick={() => handleDeleteSingle(actionTransaction.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Transaction
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  className="w-full rounded-xl text-slate-500 text-xs mt-1"
+                  onClick={() => setActionTransaction(null)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
 
 export default TransactionTable;
