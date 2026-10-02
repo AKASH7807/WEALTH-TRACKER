@@ -401,3 +401,58 @@ function calculateNextRecurringDate(startDate, interval) {
 
     return date;
 }
+
+// Get previously used transaction description notes for suggestions
+export async function getUserDescriptionSuggestions() {
+    try {
+        const user = await checkUser();
+        if (!user) return { success: false, data: [] };
+
+        const transactions = await db.transaction.findMany({
+            where: {
+                userId: user.id,
+                description: { not: null },
+            },
+            select: {
+                description: true,
+                category: true,
+                type: true,
+                amount: true,
+                createdAt: true,
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+            take: 200,
+        });
+
+        const frequencyMap = new Map();
+        for (const tx of transactions) {
+            const desc = tx.description?.trim();
+            if (!desc) continue;
+            const key = desc.toLowerCase();
+            if (!frequencyMap.has(key)) {
+                frequencyMap.set(key, {
+                    description: desc,
+                    category: tx.category,
+                    type: tx.type,
+                    count: 1,
+                    lastUsed: tx.createdAt,
+                });
+            } else {
+                const item = frequencyMap.get(key);
+                item.count += 1;
+            }
+        }
+
+        const suggestions = Array.from(frequencyMap.values()).sort((a, b) => {
+            if (b.count !== a.count) return b.count - a.count;
+            return new Date(b.lastUsed) - new Date(a.lastUsed);
+        });
+
+        return { success: true, data: suggestions };
+    } catch (error) {
+        console.error("getUserDescriptionSuggestions error:", error);
+        return { success: false, data: [] };
+    }
+}

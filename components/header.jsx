@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import React, { useState } from "react";
 import { Button } from "./ui/button";
-import { LayoutDashboard, PenBox, Menu, X } from "lucide-react";
+import { LayoutDashboard, PenBox, Menu, X, Tag } from "lucide-react";
 
 const Header = () => {
   const [open, setOpen] = useState(false);
@@ -68,6 +68,16 @@ const Header = () => {
               >
                 <LayoutDashboard size={18} />
                 Dashboard
+              </Link>
+
+              <Link
+                href="/transaction/categories"
+                prefetch={true}
+                className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full border border-white/30
+              bg-white/10 backdrop-blur-md text-white hover:bg-white/20 hover:border-white/50 hover:shadow-lg hover:shadow-white/10 transition-all duration-200"
+              >
+                <Tag size={16} />
+                Categories
               </Link>
 
               <Link
@@ -139,6 +149,16 @@ const Header = () => {
                 >
                   <LayoutDashboard size={18} />
                   Dashboard
+                </Link>
+
+                <Link
+                  href="/transaction/categories"
+                  prefetch={true}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-center gap-2 w-full py-2 rounded-full text-white border border-white/30"
+                >
+                  <Tag size={18} />
+                  Categories
                 </Link>
 
                 <Link

@@ -1,14 +1,19 @@
 import { getUserAccounts } from "@/actions/dashboard";
-import { defaultCategories } from "@/data/categories";
 import { AddTransactionForm } from "../_components/transaction-form";
-import { getTransaction } from "@/actions/transaction";
+import { getTransaction, getUserDescriptionSuggestions } from "@/actions/transaction";
+import { getUserCategories } from "@/actions/categories";
 import Link from "next/link";
-import { ArrowLeft, PlusCircle, Edit3 } from "lucide-react";
+import { ArrowLeft, PlusCircle, Edit3, Tag } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function AddTransactionPage({ searchParams }) {
-  const accounts = await getUserAccounts();
+  const [accounts, categoriesResult, suggestionsResult] = await Promise.all([
+    getUserAccounts(),
+    getUserCategories(),
+    getUserDescriptionSuggestions(),
+  ]);
+
   const editId = (await searchParams)?.edit;
 
   let initialData = null;
@@ -18,18 +23,30 @@ export default async function AddTransactionPage({ searchParams }) {
   }
 
   const isEdit = Boolean(editId);
+  const categories = categoriesResult?.data || [];
+  const descriptionSuggestions = suggestionsResult?.data || [];
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       {/* Top Navigation & Header */}
       <div className="flex flex-col gap-3">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors w-fit"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Back to Dashboard</span>
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors w-fit"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Back to Dashboard</span>
+          </Link>
+
+          <Link
+            href="/transaction/categories"
+            className="h-8 px-3 rounded-lg border border-indigo-200 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100/70 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+          >
+            <Tag className="h-3.5 w-3.5" />
+            <span>Manage Categories</span>
+          </Link>
+        </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-slate-200/80">
           <div className="flex items-center gap-3">
@@ -62,10 +79,12 @@ export default async function AddTransactionPage({ searchParams }) {
       {/* Responsive Form Workspace */}
       <AddTransactionForm
         accounts={accounts}
-        categories={defaultCategories}
+        categories={categories}
+        descriptionSuggestions={descriptionSuggestions}
         editMode={isEdit}
         initialData={initialData}
       />
     </div>
   );
 }
+

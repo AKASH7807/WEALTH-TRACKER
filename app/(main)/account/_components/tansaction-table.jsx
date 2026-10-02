@@ -75,8 +75,16 @@ export function TransactionTable({transactions}) {
     const [searchTerm, setSearchTerm] = useState("");
     const [typeFilter, setTypeFilter] = useState("");
     const [recurringFilter, setRecurringFilter] = useState("");
+    const [categoryFilter, setCategoryFilter] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const router = useRouter();
+
+    // Unique categories present in these transactions for filtering
+    const availableCategories = useMemo(() => {
+        const cats = transactions.map((t) => t.category).filter(Boolean);
+        const unique = Array.from(new Set(cats));
+        return unique.sort((a, b) => a.localeCompare(b));
+    }, [transactions]);
 
     // Memoized filtered and sorted transactions
     const filteredAndSortedTransactions = useMemo(() => {
@@ -89,12 +97,17 @@ export function TransactionTable({transactions}) {
         }
 
         // Apply type filter
-        if (typeFilter) {
+        if (typeFilter && typeFilter !== "ALL") {
             result = result.filter((transaction) => transaction.type === typeFilter);
         }
 
+        // Apply category filter
+        if (categoryFilter && categoryFilter !== "ALL") {
+            result = result.filter((transaction) => transaction.category?.toLowerCase() === categoryFilter.toLowerCase());
+        }
+
         // Apply recurring filter
-        if (recurringFilter) {
+        if (recurringFilter && recurringFilter !== "ALL") {
             result = result.filter((transaction) => {
                 if (recurringFilter === "recurring") 
                     return transaction.isRecurring;
@@ -125,6 +138,7 @@ export function TransactionTable({transactions}) {
         transactions,
         searchTerm,
         typeFilter,
+        categoryFilter,
         recurringFilter,
         sortConfig
     ]);
@@ -176,6 +190,7 @@ export function TransactionTable({transactions}) {
         setSearchTerm("");
         setTypeFilter("");
         setRecurringFilter("");
+        setCategoryFilter("");
         setCurrentPage(1);
     };
 
@@ -390,12 +405,13 @@ export function TransactionTable({transactions}) {
                     </DropdownMenu>
                 </div>
 
-                <div className="flex gap-2 w-full">
-                    <div className="flex-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
+                    {/* Type Filter */}
+                    <div className="w-full">
                         <Select value={typeFilter}
                             onValueChange={
                                 (value) => {
-                                    setTypeFilter(value);
+                                    setTypeFilter(value === "ALL" ? "" : value);
                                     setCurrentPage(1);
                                 }
                         }>
@@ -403,17 +419,50 @@ export function TransactionTable({transactions}) {
                                 <SelectValue placeholder="All Types"/>
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="ALL">All Types</SelectItem>
                                 <SelectItem value="INCOME">Income</SelectItem>
                                 <SelectItem value="EXPENSE">Expense</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
-                    <div className="flex-1">
+                    {/* Category Filter */}
+                    <div className="w-full">
+                        <Select value={categoryFilter}
+                            onValueChange={
+                                (value) => {
+                                    setCategoryFilter(value === "ALL" ? "" : value);
+                                    setCurrentPage(1);
+                                }
+                        }>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="All Categories"/>
+                            </SelectTrigger>
+                            <SelectContent className="max-h-60">
+                                <SelectItem value="ALL">All Categories</SelectItem>
+                                {availableCategories.map((cat) => (
+                                    <SelectItem key={cat} value={cat} className="capitalize">
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className="h-2 w-2 rounded-full inline-block shrink-0"
+                                                style={{
+                                                    backgroundColor: categoryColors[cat] || "#6366f1"
+                                                }}
+                                            />
+                                            <span>{cat.replace(/-/g, " ")}</span>
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* Recurring Filter */}
+                    <div className="w-full">
                         <Select value={recurringFilter}
                             onValueChange={
                                 (value) => {
-                                    setRecurringFilter(value);
+                                    setRecurringFilter(value === "ALL" ? "" : value);
                                     setCurrentPage(1);
                                 }
                         }>
@@ -421,6 +470,7 @@ export function TransactionTable({transactions}) {
                                 <SelectValue placeholder="All Transactions"/>
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="ALL">All Transactions</SelectItem>
                                 <SelectItem value="recurring">Recurring Only</SelectItem>
                                 <SelectItem value="non-recurring">Non-recurring Only</SelectItem>
                             </SelectContent>
@@ -444,7 +494,7 @@ export function TransactionTable({transactions}) {
             }
 
                 {
-                (searchTerm || typeFilter || recurringFilter) && (
+                (searchTerm || typeFilter || recurringFilter || categoryFilter) && (
                     <Button variant="outline" size="icon"
                         onClick={handleClearFilters}
                         title="Clear filters">
@@ -557,7 +607,7 @@ export function TransactionTable({transactions}) {
                             <TableCell className="capitalize">
                                 <span style={
                                         {
-                                            background: categoryColors[transaction.category]
+                                            background: categoryColors[transaction.category] || "#6366f1"
                                         }
                                     }
                                     className="px-2 py-1 rounded text-white text-sm">

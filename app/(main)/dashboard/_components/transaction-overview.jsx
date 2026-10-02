@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { format } from "date-fns";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
@@ -166,6 +167,20 @@ export function DashboardOverview({ accounts = [], transactions = [] }) {
               })
             )}
           </div>
+
+          {selectedAccountId && accountTransactions.length > 0 && (
+            <div className="pt-3 mt-4 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                {accountTransactions.length} total transactions
+              </span>
+              <Link
+                href={`/account/${selectedAccountId}`}
+                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-1"
+              >
+                View Transaction List Page →
+              </Link>
+            </div>
+          )}
         </CardContent>
       </Card>
 
