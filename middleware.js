@@ -7,13 +7,16 @@ const isProtectedRoute = createRouteMatcher([
   "/transaction(.*)",
 ]);
 
-// Base Clerk middleware - complete freedom for mobile web apps and WebViews with no blocking third-party rules
+// Internal sign-in redirection: keeps the app 100% on the internal origin
+// and prevents WebViews / Android APKs from launching Chrome Custom Tabs (URL tab bar)
 export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth();
 
   if (!userId && isProtectedRoute(req)) {
-    const { redirectToSignIn } = await auth();
-    return redirectToSignIn();
+    // Redirect to local /sign-in route instead of external Clerk hosted domain
+    const signInUrl = new URL("/sign-in", req.url);
+    signInUrl.searchParams.set("redirect_url", req.url);
+    return NextResponse.redirect(signInUrl);
   }
 
   return NextResponse.next();

@@ -75,6 +75,7 @@ import {
   List,
   Table as TableIcon,
   Check,
+  AlertTriangle,
 } from "lucide-react";
 
 const ITEMS_PER_PAGE = 10;
@@ -93,6 +94,30 @@ function formatINR(amount) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
+}
+
+// Render modern mild light-color badge pill
+function renderCategoryBadge(category) {
+  if (!category) return null;
+  const rawColor = categoryColors[category] || "#6366f1";
+  const name = category.replace(/-/g, " ");
+
+  return (
+    <span
+      style={{
+        backgroundColor: `${rawColor}18`, // ~10% opacity for gentle, mild light tint
+        color: rawColor,
+        borderColor: `${rawColor}35`,
+      }}
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border capitalize tracking-tight shrink-0 select-none shadow-xs"
+    >
+      <span
+        className="w-1.5 h-1.5 rounded-full shrink-0"
+        style={{ backgroundColor: rawColor }}
+      />
+      <span className="truncate max-w-[120px] sm:max-w-[180px]">{name}</span>
+    </span>
+  );
 }
 
 // Generate avatar matching the neo-banking screenshot
@@ -176,6 +201,7 @@ export function TransactionTable({ transactions = [] }) {
 
   // Action Dialog state (for mobile hold / desktop click)
   const [actionTransaction, setActionTransaction] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Long press timer refs for mobile
   const timerRef = useRef(null);
@@ -314,12 +340,6 @@ export function TransactionTable({ transactions = [] }) {
     setSelectedIds([]);
   };
 
-  const handleDeleteSingle = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this transaction?")) return;
-    await deleteFn([id]);
-    setActionTransaction(null);
-  };
-
   useEffect(() => {
     if (deleted && !deleteLoading) {
       toast.success("Transaction(s) deleted successfully");
@@ -348,6 +368,7 @@ export function TransactionTable({ transactions = [] }) {
           window.navigator.vibrate(40);
         } catch (err) {}
       }
+      setConfirmDelete(false);
       setActionTransaction(transaction);
     }, 500);
   };
@@ -377,6 +398,7 @@ export function TransactionTable({ transactions = [] }) {
     if (isSelectMode) {
       handleSelect(transaction.id);
     } else {
+      setConfirmDelete(false);
       setActionTransaction(transaction);
     }
   };
@@ -887,6 +909,7 @@ export function TransactionTable({ transactions = [] }) {
                   onTouchEnd={handleTouchEnd}
                   onContextMenu={(e) => {
                     e.preventDefault();
+                    setConfirmDelete(false);
                     setActionTransaction(transaction);
                   }}
                   onClick={() => handleRowClick(transaction)}
@@ -915,27 +938,23 @@ export function TransactionTable({ transactions = [] }) {
                       <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base leading-snug truncate">
                         {transaction.description || "Untitled Transaction"}
                       </div>
-                      <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5">
+                      <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 sm:gap-2 mt-1 flex-wrap">
                         {/* Date formatted as: 2 Oct '26 */}
-                        <span>
+                        <span className="shrink-0 text-slate-500 font-medium">
                           {format(new Date(transaction.date), "d MMM ''yy")}
                         </span>
-                        <span>•</span>
-                        {/* Category */}
-                        <span className="capitalize truncate max-w-[120px] sm:max-w-[200px]">
-                          {transaction.category?.replace(/-/g, " ")}
-                        </span>
+
+                        {/* Modern Mild Pill Badge */}
+                        {renderCategoryBadge(transaction.category)}
+
                         {/* Recurring badge if recurring */}
                         {transaction.isRecurring && (
-                          <>
-                            <span>•</span>
-                            <span className="inline-flex items-center gap-0.5 text-purple-600 dark:text-purple-400 font-semibold">
-                              <RefreshCw className="h-2.5 w-2.5" />
-                              <span className="text-[10px]">
-                                {RECURRING_INTERVALS[transaction.recurringInterval] || "Recurring"}
-                              </span>
+                          <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400 font-semibold bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full text-[10px] border border-purple-200/50 dark:border-purple-800/50">
+                            <RefreshCw className="h-2.5 w-2.5" />
+                            <span>
+                              {RECURRING_INTERVALS[transaction.recurringInterval] || "Recurring"}
                             </span>
-                          </>
+                          </span>
                         )}
                       </div>
                     </div>
@@ -961,6 +980,7 @@ export function TransactionTable({ transactions = [] }) {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
+                        setConfirmDelete(false);
                         setActionTransaction(transaction);
                       }}
                       className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -1060,16 +1080,8 @@ export function TransactionTable({ transactions = [] }) {
                       <TableCell className="font-semibold text-slate-900 dark:text-slate-100">
                         {transaction.description}
                       </TableCell>
-                      <TableCell className="capitalize">
-                        <span
-                          style={{
-                            backgroundColor:
-                              categoryColors[transaction.category] || "#6366f1",
-                          }}
-                          className="px-2 py-0.5 rounded text-white text-xs font-medium inline-block"
-                        >
-                          {transaction.category?.replace(/-/g, " ")}
-                        </span>
+                      <TableCell>
+                        {renderCategoryBadge(transaction.category)}
                       </TableCell>
                       <TableCell
                         className={cn(
@@ -1113,7 +1125,10 @@ export function TransactionTable({ transactions = [] }) {
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive"
-                              onClick={() => handleDeleteSingle(transaction.id)}
+                              onClick={() => {
+                                setActionTransaction(transaction);
+                                setConfirmDelete(true);
+                              }}
                             >
                               <Trash2 className="h-3.5 w-3.5 mr-2" />
                               Delete
@@ -1164,15 +1179,22 @@ export function TransactionTable({ transactions = [] }) {
       {/* Action Dialog (Mobile Long-Press & Desktop Click) */}
       <Dialog
         open={!!actionTransaction}
-        onOpenChange={(open) => !open && setActionTransaction(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActionTransaction(null);
+            setConfirmDelete(false);
+          }
+        }}
       >
         <DialogContent className="sm:max-w-md p-6 rounded-3xl">
           <DialogHeader className="text-left">
             <DialogTitle className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              Transaction Details
+              {confirmDelete ? "Delete Transaction" : "Transaction Details"}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Review details or choose an action below.
+              {confirmDelete
+                ? "Please confirm if you want to permanently remove this transaction."
+                : "Review details or choose an action below."}
             </DialogDescription>
           </DialogHeader>
 
@@ -1186,15 +1208,12 @@ export function TransactionTable({ transactions = [] }) {
                     <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate">
                       {actionTransaction.description || "Untitled Transaction"}
                     </h4>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                    <div className="text-xs text-muted-foreground font-medium flex items-center gap-2 mt-1 flex-wrap">
                       <span>
                         {format(new Date(actionTransaction.date), "d MMM ''yy")}
                       </span>
-                      <span>•</span>
-                      <span className="capitalize">
-                        {actionTransaction.category?.replace(/-/g, " ")}
-                      </span>
-                    </p>
+                      {renderCategoryBadge(actionTransaction.category)}
+                    </div>
                   </div>
                 </div>
 
@@ -1225,37 +1244,85 @@ export function TransactionTable({ transactions = [] }) {
                 </div>
               )}
 
-              {/* Action Buttons: Edit & Delete */}
-              <div className="grid grid-cols-1 gap-2.5 pt-2">
-                <Button
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-5 rounded-xl flex items-center justify-center gap-2 shadow-sm"
-                  onClick={() => {
-                    const id = actionTransaction.id;
-                    setActionTransaction(null);
-                    router.push(`/transaction/create?edit=${id}`);
-                  }}
-                >
-                  <Pencil className="h-4 w-4" />
-                  Edit Transaction
-                </Button>
+              {/* Dynamic Action Buttons or In-Dialog Confirmation Box */}
+              {confirmDelete ? (
+                <div className="p-4 bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl space-y-3 animate-in fade-in zoom-in-95">
+                  <div className="flex items-start gap-2.5">
+                    <div className="p-2 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-600 shrink-0">
+                      <AlertTriangle className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-bold text-rose-900 dark:text-rose-200">
+                        Confirm Permanent Deletion
+                      </h5>
+                      <p className="text-[11px] text-rose-700/90 dark:text-rose-300/80 mt-0.5 leading-relaxed">
+                        Are you sure you want to delete this transaction record? This action cannot be undone and your account balance will be recalculated.
+                      </p>
+                    </div>
+                  </div>
 
-                <Button
-                  variant="outline"
-                  className="w-full text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/50 dark:hover:bg-rose-950/40 font-semibold py-5 rounded-xl flex items-center justify-center gap-2"
-                  onClick={() => handleDeleteSingle(actionTransaction.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete Transaction
-                </Button>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmDelete(false)}
+                      disabled={deleteLoading}
+                      className="rounded-xl border-slate-200 dark:border-slate-800 text-xs font-semibold py-2.5"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={deleteLoading}
+                      onClick={async () => {
+                        await deleteFn([actionTransaction.id]);
+                        setActionTransaction(null);
+                        setConfirmDelete(false);
+                      }}
+                      className="rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-semibold gap-1.5 shadow-sm py-2.5"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {deleteLoading ? "Deleting..." : "Yes, Delete"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2.5 pt-2">
+                  <Button
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-5 rounded-xl flex items-center justify-center gap-2 shadow-sm"
+                    onClick={() => {
+                      const id = actionTransaction.id;
+                      setActionTransaction(null);
+                      setConfirmDelete(false);
+                      router.push(`/transaction/create?edit=${id}`);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit Transaction
+                  </Button>
 
-                <Button
-                  variant="ghost"
-                  className="w-full rounded-xl text-slate-500 text-xs mt-1"
-                  onClick={() => setActionTransaction(null)}
-                >
-                  Cancel
-                </Button>
-              </div>
+                  <Button
+                    variant="outline"
+                    className="w-full text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/50 dark:hover:bg-rose-950/40 font-semibold py-5 rounded-xl flex items-center justify-center gap-2"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete Transaction
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    className="w-full rounded-xl text-slate-500 text-xs mt-1"
+                    onClick={() => {
+                      setActionTransaction(null);
+                      setConfirmDelete(false);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

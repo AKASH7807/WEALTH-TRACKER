@@ -2,13 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { updateDefaultAccount, updateAccountName } from "@/actions/accounts";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,10 +21,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import useFetch from "@/hooks/use-fetch";
-import { ArrowDownRight, ArrowUpRight, Pencil, Loader2, Wallet } from "lucide-react";
+import { Pencil, Loader2, Wallet, Landmark, CreditCard, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const AccountCard = ({ account }) => {
   const { name, type, balance, id, isDefault } = account;
@@ -110,25 +105,52 @@ const AccountCard = ({ account }) => {
 
   const numBalance = parseFloat(balance) || 0;
 
+  // Icon based on account type
+  const getAccountIcon = () => {
+    const t = type.toLowerCase();
+    if (t.includes("credit")) return <CreditCard className="h-4 w-4" />;
+    if (t.includes("saving") || t.includes("current")) return <Landmark className="h-4 w-4" />;
+    return <Wallet className="h-4 w-4" />;
+  };
+
   return (
     <>
-      <Card className="hover:shadow-md transition-shadow group relative border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-xl overflow-hidden">
-        <Link href={`/account/${id}`} prefetch={true} className="block">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 pr-24">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <CardTitle className="text-sm font-semibold capitalize truncate text-slate-800 dark:text-slate-100">
-                {name}
-              </CardTitle>
+      <Card className="hover:shadow-md hover:border-purple-300 dark:hover:border-purple-800 transition-all group relative border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-xs">
+        <Link href={`/account/${id}`} prefetch={true} className="block p-5">
+          <div className="flex items-center justify-between pb-2 pr-20">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 shrink-0">
+                {getAccountIcon()}
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold capitalize truncate text-slate-900 dark:text-white">
+                  {name}
+                </h3>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[11px] text-muted-foreground capitalize">
+                    {type.toLowerCase()} account
+                  </span>
+                  {isDefault && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                      Default
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-          </CardHeader>
+          </div>
 
-          <CardContent className="pt-1">
+          <div className="mt-3">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Net Balance
+            </span>
             <div
-              className={`text-2xl font-bold tracking-tight ${
+              className={cn(
+                "text-2xl font-black tracking-tight mt-0.5",
                 numBalance < 0
                   ? "text-rose-600 dark:text-rose-400"
                   : "text-slate-900 dark:text-white"
-              }`}
+              )}
             >
               {numBalance < 0 ? "-₹" : "₹"}
               {Math.abs(numBalance).toLocaleString("en-IN", {
@@ -136,26 +158,22 @@ const AccountCard = ({ account }) => {
                 maximumFractionDigits: 2,
               })}
             </div>
-            <p className="text-xs text-muted-foreground capitalize mt-0.5">
-              {type.charAt(0) + type.slice(1).toLowerCase()} Account
-            </p>
-          </CardContent>
+          </div>
 
-          <CardFooter className="flex justify-between text-xs text-muted-foreground pt-2 border-t border-slate-100 dark:border-slate-800/80">
-            <div className="flex items-center font-medium text-emerald-600 dark:text-emerald-400">
-              <ArrowUpRight className="mr-1 h-3.5 w-3.5" />
-              Income
-            </div>
-            <div className="flex items-center font-medium text-rose-600 dark:text-rose-400">
-              <ArrowDownRight className="mr-1 h-3.5 w-3.5" />
-              Expense
-            </div>
-          </CardFooter>
+          <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+            <span className="text-muted-foreground text-[11px] font-medium">
+              {account._count?.transactions ?? 0} transactions
+            </span>
+            <span className="text-purple-600 dark:text-purple-400 text-xs font-semibold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+              <span>View Activity</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </span>
+          </div>
         </Link>
 
         {/* Action Controls: Edit Name Button & Default Switch */}
         <div
-          className="absolute top-3.5 right-3.5 flex items-center gap-1.5 z-10"
+          className="absolute top-4 right-4 flex items-center gap-1.5 z-10"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -167,7 +185,7 @@ const AccountCard = ({ account }) => {
             variant="ghost"
             size="icon"
             onClick={handleOpenEdit}
-            className="h-7 w-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-colors"
+            className="h-7 w-7 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/50 transition-colors"
             title="Edit account name"
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -182,7 +200,7 @@ const AccountCard = ({ account }) => {
                     checked={isDefault}
                     onCheckedChange={() => handleDefaultChange({ preventDefault: () => {} })}
                     disabled={updateDefaultLoading}
-                    className="data-[state=checked]:bg-indigo-600"
+                    className="data-[state=checked]:bg-purple-600"
                   />
                 </div>
               </TooltipTrigger>
@@ -199,17 +217,17 @@ const AccountCard = ({ account }) => {
       {/* Edit Account Name Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent
-          className="max-w-md p-6"
+          className="max-w-md p-6 rounded-3xl"
           onClick={(e) => e.stopPropagation()}
         >
           <DialogHeader>
-            <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-2">
+            <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400 mb-2">
               <Wallet className="h-5 w-5" />
             </div>
             <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white">
               Edit Account Name
             </DialogTitle>
-            <DialogDescription className="text-sm text-slate-500 pt-1">
+            <DialogDescription className="text-xs text-slate-500 pt-0.5">
               Update the display name for this account.
             </DialogDescription>
           </DialogHeader>
@@ -227,7 +245,7 @@ const AccountCard = ({ account }) => {
                 value={accountName}
                 onChange={(e) => setAccountName(e.target.value)}
                 placeholder="e.g. Salary Account, Emergency Fund"
-                className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 px-3.5 text-sm transition-all focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 px-3.5 text-sm transition-all focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
                 autoFocus
                 disabled={isSavingName}
               />
@@ -246,7 +264,7 @@ const AccountCard = ({ account }) => {
               <Button
                 type="submit"
                 disabled={isSavingName || !accountName.trim()}
-                className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+                className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-medium"
               >
                 {isSavingName ? (
                   <>

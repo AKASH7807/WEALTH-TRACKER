@@ -5,16 +5,15 @@
   "start_url": "/",
   "id": "/",
   "scope": "/",
-  "display": "standalone",
+  "display": "fullscreen",
   "display_override": [
     "fullscreen",
     "standalone",
-    "minimal-ui",
     "window-controls-overlay"
   ],
   "orientation": "portrait",
-  "background_color": "#ffffff",
-  "theme_color": "#6366f1",
+  "background_color": "#020617",
+  "theme_color": "#020617",
   "categories": ["finance", "productivity", "utilities"],
   "icons": [
     {

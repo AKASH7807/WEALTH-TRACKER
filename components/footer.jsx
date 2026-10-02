@@ -2,18 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
-import {
-  Download,
-  ShieldCheck,
-  Zap,
-  TrendingUp,
-  Smartphone,
-  ExternalLink,
-  Lock,
-  Sparkles,
-  ArrowUpRight,
-} from "lucide-react";
+import { Download, TrendingUp } from "lucide-react";
 
 export function Footer() {
   return (
@@ -22,11 +11,11 @@ export function Footer() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[150px] bg-indigo-500/5 blur-[100px] pointer-events-none" />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12">
-        {/* Main Grid: 4 Columns */}
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-12">
+        {/* Main Grid: 3 Clean Columns */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 pb-12 border-b border-slate-800/80">
-          {/* Column 1: Brand & APK CTA (5 cols on lg) */}
-          <div className="lg:col-span-5 space-y-5">
+          {/* Column 1: Brand & APK CTA (6 cols on lg) */}
+          <div className="lg:col-span-6 space-y-5">
             <Link href="/" className="inline-flex items-center gap-2.5 group">
               <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
                 <TrendingUp className="h-5 w-5" />
@@ -52,8 +41,8 @@ export function Footer() {
               <span className="text-slate-400">Bank-Grade 256-bit SSL</span>
             </div>
 
-            {/* Direct APK Download Banner */}
-            <div className="pt-2">
+            {/* Direct APK Download Banner without "fullscreen" word */}
+            <div className="pt-1">
               <a
                 href="/wealth-tracker.apk"
                 download="wealth-tracker.apk"
@@ -65,15 +54,15 @@ export function Footer() {
                 <div className="text-left">
                   <div className="font-bold leading-tight">Download Android App</div>
                   <div className="text-[10px] text-white/70 font-normal">
-                    v1.0 • Direct APK • Fullscreen
+                    v1.0 • Direct APK
                   </div>
                 </div>
               </a>
             </div>
           </div>
 
-          {/* Column 2: Platform Links (2 cols on lg) */}
-          <div className="lg:col-span-2 space-y-4">
+          {/* Column 2: Platform Links (3 cols on lg) */}
+          <div className="lg:col-span-3 space-y-4">
             <p className="text-xs font-bold uppercase tracking-wider text-white">
               Platform
             </p>
@@ -117,8 +106,8 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Column 3: Features & Capabilities (2 cols on lg) */}
-          <div className="lg:col-span-2 space-y-4">
+          {/* Column 3: Features & Capabilities (3 cols on lg) */}
+          <div className="lg:col-span-3 space-y-4">
             <p className="text-xs font-bold uppercase tracking-wider text-white">
               Features
             </p>
@@ -160,34 +149,6 @@ export function Footer() {
                 </Link>
               </li>
             </ul>
-          </div>
-
-          {/* Column 4: Security & Architecture (3 cols on lg) */}
-          <div className="lg:col-span-3 space-y-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-white">
-              Security & Freedom
-            </p>
-            <div className="space-y-3 text-xs text-slate-400">
-              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
-                <Lock className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-white block">
-                    Zero Third-Party Blocks
-                  </span>
-                  <span>Full-screen standalone freedom across web & native APK.</span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
-                <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-white block">
-                    Clerk Authentication
-                  </span>
-                  <span>Enterprise session security with zero data reselling.</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
