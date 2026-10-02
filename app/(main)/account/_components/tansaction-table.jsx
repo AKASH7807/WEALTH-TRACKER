@@ -1184,7 +1184,7 @@ export function TransactionTable({ transactions = [] }) {
           }
         }}
       >
-        <DialogContent className="sm:max-w-md p-6 rounded-3xl">
+        <DialogContent className="w-[calc(100%-2rem)] sm:w-full sm:max-w-md p-5 sm:p-6 rounded-3xl mx-auto border-slate-200 dark:border-slate-800 shadow-2xl">
           <DialogHeader className="text-left">
             <DialogTitle className="text-lg font-bold text-slate-900 dark:text-slate-100">
               {confirmDelete ? "Delete Transaction" : "Transaction Details"}
@@ -1199,14 +1199,14 @@ export function TransactionTable({ transactions = [] }) {
           {actionTransaction && (
             <div className="space-y-4 py-2">
               {/* Transaction Summary Card */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl flex items-center justify-between border border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-3.5 min-w-0">
+              <div className="p-3.5 sm:p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl flex items-center justify-between border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3 min-w-0">
                   {renderTransactionAvatar(actionTransaction)}
                   <div className="min-w-0">
                     <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate">
                       {actionTransaction.description || "Untitled Transaction"}
                     </h4>
-                    <div className="text-xs text-muted-foreground font-medium flex items-center gap-2 mt-1 flex-wrap">
+                    <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 sm:gap-2 mt-1 flex-wrap">
                       <span>
                         {format(new Date(actionTransaction.date), "d MMM ''yy")}
                       </span>
@@ -1215,10 +1215,10 @@ export function TransactionTable({ transactions = [] }) {
                   </div>
                 </div>
 
-                <div className="text-right shrink-0 pl-3">
+                <div className="text-right shrink-0 pl-2 sm:pl-3">
                   <span
                     className={cn(
-                      "font-bold text-lg",
+                      "font-bold text-base sm:text-lg",
                       actionTransaction.type === "INCOME"
                         ? "text-emerald-600 dark:text-emerald-400"
                         : "text-rose-600 dark:text-rose-400"
@@ -1328,7 +1328,7 @@ export function TransactionTable({ transactions = [] }) {
 
       {/* Export Format Dialog Modal (CSV vs PDF) */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-        <DialogContent className="w-[92vw] max-w-md p-5 sm:p-6 rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl bg-white dark:bg-slate-900">
+        <DialogContent className="w-[calc(100%-2rem)] sm:w-full sm:max-w-md p-5 sm:p-6 rounded-3xl mx-auto border-slate-200 dark:border-slate-800 shadow-2xl bg-white dark:bg-slate-900">
           <DialogHeader className="text-left pb-2 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-2xl bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
