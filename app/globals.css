@@ -164,3 +164,13 @@ body {
   background-size: 200% 200%;
   animation: gradientMove 3s ease infinite;
 }
+
+/* Full-screen & Mobile Safe-Area utilities for PWA and Mobile WebViews */
+@supports (padding-top: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}

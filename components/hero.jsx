@@ -154,18 +154,17 @@ const HeroSection = () => {
             variant="outline"
             className="group w-full sm:w-auto px-8 py-4 rounded-full text-base border-gray-400/60 bg-white/70 backdrop-blur-sm hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all duration-300 active:scale-95"
           >
-            <Link
-              href="https://drive.google.com/file/d/1NByabSOQdqD4SjOLeNtjFE3jn-AT0TUE/view?usp=sharing"
-              target="_blank"
+            <a
+              href="/wealth-tracker.apk"
+              download="wealth-tracker.apk"
               className="flex items-center justify-center gap-2"
-              download
             >
               <Download
                 size={18}
                 className="text-gray-500 group-hover:text-white transition-colors"
               />
               <span>Download App</span>
-            </Link>
+            </a>
           </Button>
         </div>
 

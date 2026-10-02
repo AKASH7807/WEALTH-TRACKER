@@ -221,81 +221,186 @@ export async function getUserTransactions(query = {}) {
     }
 }
 
-// Scan Receipt
-export async function scanReceipt(file) {
-    // Try a set of candidate models (can be overridden with GEMINI_MODEL env var)
-    const modelsToTry = [process.env.GEMINI_MODEL, "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"].filter(Boolean);
+// Scan Receipt with automatic fallback and retry
+export async function scanReceipt(input) {
+    try {
+        let file = input;
+        if (input instanceof FormData) {
+            file = input.get("file");
+        }
 
-    // Convert File to ArrayBuffer once
-    const arrayBuffer = await file.arrayBuffer();
-    const base64String = Buffer.from(arrayBuffer).toString("base64");
+        if (!file) {
+            throw new Error("No receipt file provided for scanning.");
+        }
 
-    const prompt = `
-      Analyze this receipt image and extract the following information in JSON format:
-      - Total amount (just the number)
-      - Date (in ISO format)
-      - Description or items purchased (brief summary)
-      - Merchant/store name
-      - Suggested category (one of: housing,transportation,groceries,utilities,entertainment,food,shopping,healthcare,education,personal,travel,insurance,gifts,bills,other-expense )
-      
-      Only respond with valid JSON in this exact format:
-      {
-        "amount": number,
-        "date": "ISO date string",
-        "description": "string",
-        "merchantName": "string",
-        "category": "string"
-      }
+        // Convert file/blob to base64
+        let base64String = "";
+        let mimeType = "image/jpeg";
 
-      If its not a recipt, return an empty object
-    `;
-
-    let lastError = null;
-
-    for (const modelName of modelsToTry) {
-        try {
-            const model = genAI.getGenerativeModel({model: modelName});
-            const result = await model.generateContent([{inlineData: {data: base64String, mimeType: file.type}}, prompt]);
-            const response = await result.response;
-            const text = response.text();
-            const cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();
-
-            try {
-                const data = JSON.parse(cleanedText);
-                return {
-                    amount: isNaN(parseFloat(data.amount)) ? null : parseFloat(data.amount),
-                    date: data.date ? new Date(data.date) : null,
-                    description: data.description || null,
-                    category: data.category || null,
-                    merchantName: data.merchantName || null
-                };
-            } catch (parseError) {
-                console.error(`Parsing failure from model ${modelName}:`, parseError);
-                lastError = parseError;
-                // try next model
+        if (typeof file === "string" && file.startsWith("data:")) {
+            const parts = file.split(",");
+            const match = parts[0].match(/:(.*?);/);
+            if (match) mimeType = match[1];
+            base64String = parts[1] || "";
+        } else if (file.arrayBuffer) {
+            const arrayBuffer = await file.arrayBuffer();
+            base64String = Buffer.from(arrayBuffer).toString("base64");
+            if (file.type && file.type.startsWith("image/")) {
+                mimeType = file.type;
             }
-        } catch (error) {
-            console.error(`Model ${modelName} failed:`, error && error.message ? error.message : error);
-            lastError = error;
-            // If model not found (404) try next candidate, otherwise continue
-            continue;
+        } else if (file.data) {
+            base64String = file.data;
+            if (file.mimeType) mimeType = file.mimeType;
+        } else {
+            throw new Error("Unsupported file format provided for scanning.");
         }
-    }
 
-    // If none succeeded, try a Vision OCR fallback (only if configured)
-    console.error("All receipt scanning models failed", lastError);
+        // Clean base64 string
+        base64String = base64String.replace(/[\r\n\s]/g, "");
 
-    // Try Google Cloud Vision OCR if available and enabled via env
-    if (process.env.USE_VISION_OCR === "true") {
-        try {
-            const ocrResult = await ocrWithVision(base64String, file.type);
-            if (ocrResult) return ocrResult;
-        } catch (visionErr) {
-            console.error("Vision OCR fallback failed:", visionErr);
+        // Candidate Gemini models with active API support
+        const envModel = process.env.GEMINI_MODEL ? process.env.GEMINI_MODEL.replace(/^models\//, "") : null;
+        const candidateModels = [
+            envModel,
+            "gemini-3.5-flash",
+            "gemini-3.7-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-3.8-flash",
+            "gemini-flash-latest"
+        ].filter(Boolean);
+
+        // Deduplicate candidates preserving priority
+        const modelsToTry = Array.from(new Set(candidateModels));
+
+        const prompt = `You are a high-accuracy OCR assistant for financial receipts and bills.
+Examine this receipt image carefully and extract:
+1. Total amount (just the final amount paid as a positive number)
+2. Transaction date (format as YYYY-MM-DD or standard ISO date)
+3. Description or items summary (concise summary of what was purchased)
+4. Merchant or store name
+5. Suggested category strictly from this list:
+   [housing, transportation, groceries, utilities, entertainment, food, shopping, healthcare, education, personal, travel, insurance, gifts, bills, other-expense]
+
+Respond ONLY with a JSON object in this format:
+{
+  "amount": number or null,
+  "date": "YYYY-MM-DD" or null,
+  "description": "string" or null,
+  "merchantName": "string" or null,
+  "category": "string" or null
+}`;
+
+        let lastError = null;
+
+        for (const modelName of modelsToTry) {
+            // Up to 2 attempts per candidate (handles temporary 503 high-demand spikes)
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    const model = genAI.getGenerativeModel({
+                        model: modelName,
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            temperature: 0.1,
+                        },
+                    });
+
+                    const result = await model.generateContent([
+                        {
+                            inlineData: {
+                                data: base64String,
+                                mimeType: mimeType,
+                            },
+                        },
+                        prompt,
+                    ]);
+
+                    const response = await result.response;
+                    const text = response.text()?.trim();
+                    if (!text) throw new Error("Empty response from AI model");
+
+                    // Flexible JSON parsing (direct or regex extraction)
+                    let data = null;
+                    try {
+                        data = JSON.parse(text);
+                    } catch {
+                        const jsonMatch = text.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            data = JSON.parse(jsonMatch[0]);
+                        }
+                    }
+
+                    if (data) {
+                        // Extract and validate amount
+                        let rawAmount = data.amount ?? data.total ?? data.totalAmount;
+                        let amount = null;
+                        if (rawAmount !== null && rawAmount !== undefined) {
+                            const cleanedAmount = String(rawAmount).replace(/[^0-9.]/g, "");
+                            const parsedAmount = parseFloat(cleanedAmount);
+                            if (!isNaN(parsedAmount) && parsedAmount > 0) {
+                                amount = parsedAmount;
+                            }
+                        }
+
+                        // Extract and validate date
+                        let date = null;
+                        if (data.date) {
+                            const parsedDate = new Date(data.date);
+                            if (!isNaN(parsedDate.getTime())) {
+                                date = parsedDate;
+                            }
+                        }
+
+                        // Extract and normalize category
+                        let category = data.category ? String(data.category).toLowerCase().trim() : null;
+                        const validCategories = [
+                            "housing", "transportation", "groceries", "utilities", "entertainment",
+                            "food", "shopping", "healthcare", "education", "personal", "travel",
+                            "insurance", "gifts", "bills", "other-expense"
+                        ];
+                        if (category && !validCategories.includes(category)) {
+                            const match = validCategories.find(c => category.includes(c) || c.includes(category));
+                            category = match || "other-expense";
+                        }
+
+                        const merchant = data.merchantName || data.merchant || null;
+                        const description = data.description || merchant || "Receipt Purchase";
+
+                        return {
+                            amount,
+                            date,
+                            description,
+                            category: category || "other-expense",
+                            merchantName: merchant,
+                        };
+                    }
+                } catch (error) {
+                    lastError = error;
+                    console.warn(`[OCR] Model ${modelName} (attempt ${attempt}) error:`, error?.message || error);
+                    // On 503 spike, wait briefly before retry
+                    if (attempt === 1 && (error?.message?.includes("503") || error?.message?.includes("high demand") || error?.message?.includes("429"))) {
+                        await new Promise((resolve) => setTimeout(resolve, 800));
+                    } else {
+                        break; // move to next candidate model
+                    }
+                }
+            }
         }
-    }
 
-    throw new Error("Receipt scanning failed. Check server logs or configure GEMINI_MODEL or enable USE_VISION_OCR.");
+        // Try Vision OCR fallback if enabled in env
+        if (process.env.USE_VISION_OCR === "true") {
+            try {
+                const ocrResult = await ocrWithVision(base64String, mimeType);
+                if (ocrResult) return ocrResult;
+            } catch (visionErr) {
+                console.error("Vision OCR fallback failed:", visionErr);
+            }
+        }
+
+        console.error("All OCR attempts failed. Last error:", lastError?.message || lastError);
+        throw new Error("Could not extract receipt data clearly. Please check lighting, orientation, or try retrying.");
+    } catch (error) {
+        throw new Error(error.message || "Failed to scan receipt");
+    }
 }
 
 // Attempt Google Cloud Vision OCR (dynamic import). Returns parsed object or null.
