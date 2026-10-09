@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { checkUser } from "@/lib/checkUser";
+import { defaultCategories } from "@/data/categories";
 import { revalidatePath, unstable_cache } from "next/cache";
 
 const serializeAmount = (val) => {
@@ -133,7 +134,7 @@ export async function getCompleteDashboardData() {
   const user = await checkUser();
   if (!user) throw new Error("User not found");
 
-  const [accounts, transactions, budget] = await Promise.all([
+  const [accounts, transactions, budget, customCategories] = await Promise.all([
     db.account.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
@@ -148,7 +149,34 @@ export async function getCompleteDashboardData() {
     db.budget.findFirst({
       where: { userId: user.id },
     }),
+    db.category.findMany({
+      where: { userId: user.id },
+    }),
   ]);
+
+  // Fast category lookup map
+  const catMap = new Map();
+  defaultCategories.forEach((c) => {
+    catMap.set(c.id, { name: c.name, color: c.color, icon: c.icon });
+  });
+  customCategories.forEach((c) => {
+    catMap.set(c.id, {
+      name: c.name,
+      color: c.color || "#6366f1",
+      icon: c.icon || "Tag",
+    });
+  });
+
+  const enrichedTransactions = transactions.map((t) => {
+    const serialized = serializeTransaction(t);
+    const catInfo = catMap.get(t.category);
+    return {
+      ...serialized,
+      categoryName: catInfo ? catInfo.name : (t.category ? t.category.replace(/-/g, " ") : ""),
+      categoryColor: catInfo ? catInfo.color : "#6366f1",
+      categoryIcon: catInfo ? catInfo.icon : "Tag",
+    };
+  });
 
   // Compute true transaction-based balance for each account (Income - Expense)
   // so that artificial initial balance amounts do not skew the display!
@@ -192,7 +220,7 @@ export async function getCompleteDashboardData() {
 
   return {
     accounts: enrichedAccounts,
-    transactions: transactions.map(serializeTransaction),
+    transactions: enrichedTransactions,
     budgetData: defaultAccount
       ? {
           budget: budget ? { ...budget, amount: serializeAmount(budget.amount) } : null,

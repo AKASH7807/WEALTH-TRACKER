@@ -52,10 +52,10 @@ function formatINR(amount) {
 }
 
 // Render modern mild light-color badge pill
-function renderCategoryBadge(category) {
-  if (!category) return null;
-  const rawColor = categoryColors[category] || "#6366f1";
-  const name = category.replace(/-/g, " ");
+function renderCategoryBadge(category, nameOverride = null, colorOverride = null) {
+  if (!category && !nameOverride) return null;
+  const rawColor = colorOverride || categoryColors[category] || "#6366f1";
+  const name = nameOverride || (category ? category.replace(/-/g, " ") : "Uncategorized");
 
   return (
     <span
@@ -119,17 +119,25 @@ export function DashboardOverview({ accounts = [], transactions = [] }) {
 
     const expensesByCategory = currentMonthExpenses.reduce((acc, t) => {
       const category = t.category || "other-expense";
-      acc[category] = (acc[category] || 0) + Number(t.amount || 0);
+      if (!acc[category]) {
+        acc[category] = {
+          amount: 0,
+          name: t.categoryName || category.replace(/-/g, " "),
+          color: t.categoryColor || categoryColors[category],
+        };
+      }
+      acc[category].amount += Number(t.amount || 0);
       return acc;
     }, {});
 
     const chartData = Object.entries(expensesByCategory)
-      .map(([category, amount], index) => ({
-        name: category.replace(/-/g, " "),
+      .map(([category, item], index) => ({
+        name: item.name,
         category,
-        value: amount,
-        percentage: total > 0 ? (amount / total) * 100 : 0,
+        value: item.amount,
+        percentage: total > 0 ? (item.amount / total) * 100 : 0,
         color:
+          item.color ||
           categoryColors[category] ||
           FALLBACK_COLORS[index % FALLBACK_COLORS.length],
       }))
@@ -268,7 +276,7 @@ export function DashboardOverview({ accounts = [], transactions = [] }) {
                 {pieChartData.slice(0, 5).map((item) => (
                   <div key={item.category} className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2 text-xs">
-                      {renderCategoryBadge(item.category)}
+                      {renderCategoryBadge(item.category, item.name, item.color)}
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-900 dark:text-slate-100">
                           ₹{formatINR(item.value)}

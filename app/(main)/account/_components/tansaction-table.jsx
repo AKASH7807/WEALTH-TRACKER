@@ -6,8 +6,9 @@ import { format } from "date-fns";
 import { BarLoader } from "react-spinners";
 import { toast } from "sonner";
 import { bulkDeleteTransactions } from "@/actions/accounts";
+import { getUserCategories } from "@/actions/categories";
 import useFetch from "@/hooks/use-fetch";
-import { categoryColors } from "@/data/categories";
+import { categoryColors, defaultCategories } from "@/data/categories";
 import { cn } from "@/lib/utils";
 
 import { Input } from "@/components/ui/input";
@@ -99,10 +100,10 @@ function formatINR(amount) {
 }
 
 // Render modern mild light-color badge pill
-function renderCategoryBadge(category) {
-  if (!category) return null;
-  const rawColor = categoryColors[category] || "#6366f1";
-  const name = category.replace(/-/g, " ");
+function renderCategoryBadge(category, info = null) {
+  if (!category && !info) return null;
+  const rawColor = info?.color || categoryColors[category] || "#6366f1";
+  const name = info?.name || (category ? category.replace(/-/g, " ") : "Uncategorized");
 
   return (
     <span
@@ -181,7 +182,11 @@ function renderTransactionAvatar(transaction) {
   );
 }
 
-export function TransactionTable({ transactions = [] }) {
+export function TransactionTable({
+  transactions = [],
+  categories = [],
+  accountName = "",
+}) {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -216,12 +221,102 @@ export function TransactionTable({ transactions = [] }) {
     setIsMounted(true);
   }, []);
 
-  // Unique categories in transactions
+  const [categoryList, setCategoryList] = useState(categories);
+
+  useEffect(() => {
+    if (categories && categories.length > 0) {
+      setCategoryList(categories);
+    } else {
+      getUserCategories()
+        .then((res) => {
+          if (res?.success && res?.data) {
+            setCategoryList(res.data);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load categories in TransactionTable:", err);
+        });
+    }
+  }, [categories]);
+
+  // Build a fast lookup map for all categories (default + custom + transaction-embedded)
+  const categoryMap = useMemo(() => {
+    const map = new Map();
+
+    // 1. Seed with default categories
+    defaultCategories.forEach((cat) => {
+      map.set(cat.id, {
+        name: cat.name,
+        color: cat.color || "#6366f1",
+        icon: cat.icon || "Tag",
+      });
+    });
+
+    // 2. Add / override with custom categories & active categories from categoryList
+    categoryList.forEach((cat) => {
+      map.set(cat.id, {
+        name: cat.name,
+        color: cat.color || "#6366f1",
+        icon: cat.icon || "Tag",
+      });
+    });
+
+    // 3. Add any pre-resolved category details embedded directly in transactions
+    transactions.forEach((t) => {
+      if (t.category && t.categoryName) {
+        if (!map.has(t.category) || map.get(t.category).name === t.category) {
+          map.set(t.category, {
+            name: t.categoryName,
+            color: t.categoryColor || "#6366f1",
+            icon: t.categoryIcon || "Tag",
+          });
+        }
+      }
+    });
+
+    return map;
+  }, [categoryList, transactions]);
+
+  const getCategoryInfo = useMemo(() => {
+    return (categoryId, tx = null) => {
+      if (!categoryId) {
+        return { name: "Uncategorized", color: "#6366f1", icon: "Tag" };
+      }
+      if (tx?.categoryName) {
+        return {
+          name: tx.categoryName,
+          color: tx.categoryColor || categoryMap.get(categoryId)?.color || "#6366f1",
+          icon: tx.categoryIcon || "Tag",
+        };
+      }
+      const found = categoryMap.get(categoryId);
+      if (found) {
+        return found;
+      }
+      // Check if categoryId itself matches a category name (case-insensitive)
+      for (const [key, val] of categoryMap.entries()) {
+        if (val.name.toLowerCase() === categoryId.toLowerCase()) {
+          return val;
+        }
+      }
+      return {
+        name: categoryId.replace(/-/g, " "),
+        color: categoryColors[categoryId] || "#6366f1",
+        icon: "Tag",
+      };
+    };
+  }, [categoryMap]);
+
+  // Unique categories in transactions, sorted by their resolved display name
   const availableCategories = useMemo(() => {
     const cats = transactions.map((t) => t.category).filter(Boolean);
     const unique = Array.from(new Set(cats));
-    return unique.sort((a, b) => a.localeCompare(b));
-  }, [transactions]);
+    return unique.sort((a, b) => {
+      const nameA = getCategoryInfo(a).name;
+      const nameB = getCategoryInfo(b).name;
+      return nameA.localeCompare(nameB);
+    });
+  }, [transactions, getCategoryInfo]);
 
   // Count active filters
   const activeFilterCount = useMemo(() => {
@@ -239,9 +334,12 @@ export function TransactionTable({ transactions = [] }) {
     // Search filter
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
-      result = result.filter((t) =>
-        t.description?.toLowerCase().includes(searchLower)
-      );
+      result = result.filter((t) => {
+        const descMatch = t.description?.toLowerCase().includes(searchLower);
+        const catInfo = getCategoryInfo(t.category, t);
+        const catMatch = catInfo.name.toLowerCase().includes(searchLower);
+        return descMatch || catMatch;
+      });
     }
 
     // Type filter
@@ -274,9 +372,12 @@ export function TransactionTable({ transactions = [] }) {
         case "amount":
           comparison = Number(a.amount) - Number(b.amount);
           break;
-        case "category":
-          comparison = (a.category || "").localeCompare(b.category || "");
+        case "category": {
+          const nameA = getCategoryInfo(a.category, a).name;
+          const nameB = getCategoryInfo(b.category, b).name;
+          comparison = nameA.localeCompare(nameB);
           break;
+        }
         default:
           comparison = 0;
       }
@@ -291,6 +392,7 @@ export function TransactionTable({ transactions = [] }) {
     categoryFilter,
     recurringFilter,
     sortConfig,
+    getCategoryInfo,
   ]);
 
   // Pagination calculations
@@ -429,7 +531,7 @@ export function TransactionTable({ transactions = [] }) {
       const rows = dataToExport.map((t) => [
         format(new Date(t.date), "PPP"),
         t.description || "",
-        t.category || "",
+        getCategoryInfo(t.category, t).name || "",
         t.type || "",
         (t.type === "EXPENSE" ? "-" : "") + Number(t.amount).toFixed(2),
         t.isRecurring ? "Yes" : "No",
@@ -457,10 +559,13 @@ export function TransactionTable({ transactions = [] }) {
     }
   };
 
-  // PDF Export
+  // Professional Executive PDF Export
   const handleDownloadPDF = async () => {
     try {
-      const dataToExport = filteredAndSortedTransactions.length > 0 ? filteredAndSortedTransactions : transactions;
+      const dataToExport =
+        filteredAndSortedTransactions.length > 0
+          ? filteredAndSortedTransactions
+          : transactions;
       if (!dataToExport || dataToExport.length === 0) {
         toast.error("No transactions to export");
         return;
@@ -470,78 +575,292 @@ export function TransactionTable({ transactions = [] }) {
       const { jsPDF } = await import("jspdf");
       await import("jspdf-autotable");
 
+      const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+      const pageWidth = doc.internal.pageSize.getWidth(); // 595.28 pt
+      const pageHeight = doc.internal.pageSize.getHeight(); // 841.89 pt
+      const margin = 36;
+      const contentWidth = pageWidth - margin * 2; // 523.28 pt
+
+      // Calculate financial aggregates
+      const totalIncome = dataToExport
+        .filter((t) => t.type === "INCOME")
+        .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      const totalExpenses = dataToExport
+        .filter((t) => t.type === "EXPENSE")
+        .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      const netCashFlow = totalIncome - totalExpenses;
+
+      // Extract transaction dates for statement period
+      const validDates = dataToExport
+        .map((t) => (t.date ? new Date(t.date).getTime() : null))
+        .filter(Boolean);
+      const minDate = validDates.length ? new Date(Math.min(...validDates)) : null;
+      const maxDate = validDates.length ? new Date(Math.max(...validDates)) : null;
+      const periodString =
+        minDate && maxDate
+          ? `${format(minDate, "dd MMM yyyy")} – ${format(maxDate, "dd MMM yyyy")}`
+          : "All Activity";
+
+      // 1. Top Brand Accent Stripe
+      doc.setFillColor(79, 70, 229); // Indigo #4f46e5
+      doc.rect(0, 0, pageWidth, 4, "F");
+
+      // 2. Executive Statement Header
+      let currentY = 32;
+
+      // Left: Brand & Statement Title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text("WEALTH TRACKER", margin, currentY);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139); // slate-500
+      doc.text(
+        accountName
+          ? `ACCOUNT STATEMENT · ${accountName.toUpperCase()}`
+          : "TRANSACTION ACTIVITY STATEMENT",
+        margin,
+        currentY + 12
+      );
+
+      // Right: Metadata Block
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      const metaGenerated = `Generated: ${format(new Date(), "dd MMM yyyy, hh:mm a")}`;
+      const metaPeriod = `Period: ${periodString}`;
+      const metaRecords = `Total Records: ${dataToExport.length} transactions`;
+
+      doc.text(metaGenerated, pageWidth - margin, currentY - 2, { align: "right" });
+      doc.text(metaPeriod, pageWidth - margin, currentY + 9, { align: "right" });
+      doc.text(metaRecords, pageWidth - margin, currentY + 20, { align: "right" });
+
+      currentY += 28;
+
+      // Header Divider Line
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.setLineWidth(0.75);
+      doc.line(margin, currentY, pageWidth - margin, currentY);
+
+      currentY += 10;
+
+      // 3. Executive KPI Summary Cards Row
+      const cardGap = 8;
+      const cardWidth = (contentWidth - cardGap * 2) / 3;
+      const cardHeight = 36;
+
+      // Card 1: Total Inflow (Income)
+      doc.setFillColor(240, 253, 244); // emerald-50
+      doc.setDrawColor(187, 247, 208); // emerald-200
+      doc.roundedRect(margin, currentY, cardWidth, cardHeight, 4, 4, "FD");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(5, 150, 105); // emerald-600
+      doc.text("TOTAL INFLOW (INCOME)", margin + 8, currentY + 12);
+
+      doc.setFontSize(10.5);
+      doc.setTextColor(4, 120, 87); // emerald-700
+      doc.text(`+INR ${formatINR(totalIncome)}`, margin + 8, currentY + 27);
+
+      // Card 2: Total Outflow (Expenses)
+      const card2X = margin + cardWidth + cardGap;
+      doc.setFillColor(255, 241, 242); // rose-50
+      doc.setDrawColor(254, 205, 211); // rose-200
+      doc.roundedRect(card2X, currentY, cardWidth, cardHeight, 4, 4, "FD");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(225, 29, 72); // rose-600
+      doc.text("TOTAL OUTFLOW (EXPENSES)", card2X + 8, currentY + 12);
+
+      doc.setFontSize(10.5);
+      doc.setTextColor(190, 18, 60); // rose-700
+      doc.text(`-INR ${formatINR(totalExpenses)}`, card2X + 8, currentY + 27);
+
+      // Card 3: Net Cash Flow
+      const card3X = card2X + cardWidth + cardGap;
+      const isNetPositive = netCashFlow >= 0;
+      if (isNetPositive) {
+        doc.setFillColor(240, 253, 244);
+        doc.setDrawColor(187, 247, 208);
+      } else {
+        doc.setFillColor(255, 241, 242);
+        doc.setDrawColor(254, 205, 211);
+      }
+      doc.roundedRect(card3X, currentY, cardWidth, cardHeight, 4, 4, "FD");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      if (isNetPositive) {
+        doc.setTextColor(5, 150, 105);
+      } else {
+        doc.setTextColor(225, 29, 72);
+      }
+      doc.text("NET CASH FLOW", card3X + 8, currentY + 12);
+
+      doc.setFontSize(10.5);
+      if (isNetPositive) {
+        doc.setTextColor(4, 120, 87);
+      } else {
+        doc.setTextColor(190, 18, 60);
+      }
+      doc.text(
+        `${isNetPositive ? "+" : "-"}INR ${formatINR(Math.abs(netCashFlow))}`,
+        card3X + 8,
+        currentY + 27
+      );
+
+      currentY += cardHeight + 14;
+
+      // Table Section Label
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(30, 41, 59); // slate-800
+      doc.text(`ITEMIZED TRANSACTIONS (${dataToExport.length} RECORDS)`, margin, currentY);
+
+      currentY += 5;
+
+      // 4. Itemized Ledger Table
       const cols = [
         "Date",
         "Description",
         "Category",
         "Type",
         "Amount",
-        "Recurring",
-        "Next Recurring Date",
+        "Frequency",
+        "Next Due",
       ];
+
       const rows = dataToExport.map((t) => [
-        format(new Date(t.date), "PPP"),
-        t.description || "",
-        t.category || "",
-        t.type || "",
-        (t.type === "EXPENSE" ? "-" : "") + Number(t.amount).toFixed(2),
-        t.isRecurring ? "Yes" : "No",
-        t.isRecurring && t.nextRecurringDate ? format(new Date(t.nextRecurringDate), "PPP") : "",
+        t.date ? format(new Date(t.date), "dd MMM yyyy") : "—",
+        (t.description || "Untitled Transaction").trim(),
+        getCategoryInfo(t.category, t).name || "General",
+        t.type || "EXPENSE",
+        `${t.type === "EXPENSE" ? "-" : "+"}INR ${formatINR(t.amount)}`,
+        t.isRecurring
+          ? RECURRING_INTERVALS[t.recurringInterval] || "Recurring"
+          : "One-time",
+        t.isRecurring && t.nextRecurringDate
+          ? format(new Date(t.nextRecurringDate), "dd MMM yy")
+          : "—",
       ]);
 
-      const doc = new jsPDF({ unit: "pt", format: "a4" });
-      doc.setFontSize(10);
-
-      const margin = 40;
       doc.autoTable({
-        startY: 70,
+        startY: currentY,
         head: [cols],
         body: rows,
-        theme: "grid",
+        theme: "striped",
         styles: {
-          fontSize: 9,
-          textColor: [34, 34, 34],
-          lineColor: [200, 200, 200],
+          font: "helvetica",
+          fontSize: 8,
+          cellPadding: { top: 4.5, right: 4.5, bottom: 4.5, left: 4.5 },
+          valign: "middle",
+          overflow: "linebreak",
+          lineColor: [241, 245, 249],
           lineWidth: 0.5,
-          cellPadding: 6,
+          textColor: [30, 41, 59],
         },
         headStyles: {
-          fillColor: [245, 245, 245],
-          textColor: [17, 17, 17],
+          fillColor: [30, 41, 59], // Slate-800
+          textColor: [255, 255, 255],
           fontStyle: "bold",
+          fontSize: 8,
+          cellPadding: { top: 5.5, right: 4.5, bottom: 5.5, left: 4.5 },
+          valign: "middle",
+          halign: "left",
         },
         alternateRowStyles: {
-          fillColor: [250, 250, 250],
+          fillColor: [248, 250, 252], // Slate-50
         },
         columnStyles: {
-          4: { halign: "right" },
+          0: { cellWidth: 68, halign: "left" },   // Date: "10 Oct 2026" never wraps
+          1: { cellWidth: 147, halign: "left" },  // Description: generous space
+          2: { cellWidth: 84, halign: "left" },   // Category: resolved name
+          3: { cellWidth: 50, halign: "center" }, // Type: Centered
+          4: { cellWidth: 74, halign: "right" },  // Amount: Right-aligned
+          5: { cellWidth: 50, halign: "center" }, // Frequency: Centered
+          6: { cellWidth: 50, halign: "center" }, // Next Due: Centered
         },
-        margin: { left: margin, right: margin },
+        didParseCell: (data) => {
+          if (data.section === "body") {
+            // Type column
+            if (data.column.index === 3) {
+              data.cell.styles.fontStyle = "bold";
+              data.cell.styles.fontSize = 7;
+              if (data.cell.raw === "INCOME") {
+                data.cell.styles.textColor = [5, 150, 105]; // emerald-600
+              } else {
+                data.cell.styles.textColor = [225, 29, 72]; // rose-600
+              }
+            }
+            // Amount column
+            if (data.column.index === 4) {
+              data.cell.styles.fontStyle = "bold";
+              if (typeof data.cell.raw === "string" && data.cell.raw.startsWith("-")) {
+                data.cell.styles.textColor = [225, 29, 72]; // rose-600
+              } else if (typeof data.cell.raw === "string" && data.cell.raw.startsWith("+")) {
+                data.cell.styles.textColor = [5, 150, 105]; // emerald-600
+              }
+            }
+            // Frequency column
+            if (data.column.index === 5) {
+              if (data.cell.raw && data.cell.raw !== "One-time") {
+                data.cell.styles.textColor = [124, 58, 237]; // violet-600
+                data.cell.styles.fontStyle = "bold";
+              } else {
+                data.cell.styles.textColor = [100, 116, 139]; // slate-500
+              }
+            }
+          }
+        },
+        margin: { left: margin, right: margin, bottom: 35 },
         didDrawPage: (data) => {
-          doc.setFontSize(12);
-          doc.setTextColor(17, 17, 17);
-          doc.text("Transactions Activity", margin, 40);
-
-          const pageSize = doc.internal.pageSize;
-          const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
-          doc.setFontSize(9);
-          doc.setTextColor(120, 120, 120);
-          const leftFooter = `Generated: ${new Date().toLocaleString()}`;
-          doc.text(leftFooter, margin, pageHeight - 30);
-          const rightFooter = `Page ${data.pageNumber}`;
-          doc.text(
-            rightFooter,
-            pageSize.getWidth() - margin - doc.getTextWidth(rightFooter),
-            pageHeight - 30
-          );
+          // Running header on page 2 and onwards
+          if (data.pageNumber > 1) {
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text(
+              accountName
+                ? `Wealth Tracker · ${accountName.toUpperCase()} · Activity Statement`
+                : "Wealth Tracker · Transaction Activity Statement",
+              margin,
+              22
+            );
+            doc.setDrawColor(226, 232, 240);
+            doc.setLineWidth(0.5);
+            doc.line(margin, 26, pageWidth - margin, 26);
+          }
         },
       });
 
+      // 5. Professional Footer on All Pages
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.5);
+        doc.line(margin, pageHeight - 24, pageWidth - margin, pageHeight - 24);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(148, 163, 184); // slate-400
+        doc.text("Wealth Tracker · Confidential Financial Statement", margin, pageHeight - 14);
+
+        const pageText = `Page ${i} of ${totalPages}`;
+        doc.text(pageText, pageWidth - margin, pageHeight - 14, { align: "right" });
+      }
+
+      const fileSafeName = (accountName || "transactions")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "_");
       const now = new Date().toISOString().slice(0, 10);
-      doc.save(`transactions_${now}.pdf`);
-      toast.success("PDF report downloaded successfully");
+      doc.save(`${fileSafeName}_statement_${now}.pdf`);
+      toast.success("Professional PDF statement downloaded successfully");
     } catch (err) {
-      console.error(err);
+      console.error("PDF generation error:", err);
       toast.error("Failed to generate PDF");
     } finally {
       setIsExportingPDF(false);
@@ -726,17 +1045,20 @@ export function TransactionTable({ transactions = [] }) {
                   </SelectTrigger>
                   <SelectContent className="max-h-56 rounded-xl">
                     <SelectItem value="ALL">All Categories</SelectItem>
-                    {availableCategories.map((cat) => (
-                      <SelectItem key={cat} value={cat} className="capitalize text-xs">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-2 w-2 rounded-full inline-block shrink-0"
-                            style={{ backgroundColor: categoryColors[cat] || "#6366f1" }}
-                          />
-                          <span>{cat.replace(/-/g, " ")}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {availableCategories.map((cat) => {
+                      const catInfo = getCategoryInfo(cat);
+                      return (
+                        <SelectItem key={cat} value={cat} className="capitalize text-xs">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-2 w-2 rounded-full inline-block shrink-0"
+                              style={{ backgroundColor: catInfo.color }}
+                            />
+                            <span>{catInfo.name}</span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -831,7 +1153,7 @@ export function TransactionTable({ transactions = [] }) {
           )}
           {categoryFilter && (
             <Badge variant="secondary" className="gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-normal capitalize">
-              Category: {categoryFilter.replace(/-/g, " ")}
+              Category: {getCategoryInfo(categoryFilter).name}
               <X className="h-3 w-3 cursor-pointer" onClick={() => setCategoryFilter("")} />
             </Badge>
           )}
@@ -942,7 +1264,10 @@ export function TransactionTable({ transactions = [] }) {
                         </span>
 
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          {renderCategoryBadge(transaction.category)}
+                          {renderCategoryBadge(
+                            transaction.category,
+                            getCategoryInfo(transaction.category, transaction)
+                          )}
 
                           {/* Recurring badge if recurring */}
                           {transaction.isRecurring && (
@@ -1079,7 +1404,10 @@ export function TransactionTable({ transactions = [] }) {
                         {transaction.description}
                       </TableCell>
                       <TableCell>
-                        {renderCategoryBadge(transaction.category)}
+                        {renderCategoryBadge(
+                          transaction.category,
+                          getCategoryInfo(transaction.category, transaction)
+                        )}
                       </TableCell>
                       <TableCell
                         className={cn(
@@ -1210,7 +1538,10 @@ export function TransactionTable({ transactions = [] }) {
                       <span>
                         {format(new Date(actionTransaction.date), "d MMM ''yy")}
                       </span>
-                      {renderCategoryBadge(actionTransaction.category)}
+                      {renderCategoryBadge(
+                        actionTransaction.category,
+                        getCategoryInfo(actionTransaction.category, actionTransaction)
+                      )}
                     </div>
                   </div>
                 </div>

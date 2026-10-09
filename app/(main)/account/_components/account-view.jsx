@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function AccountView({ account, transactions }) {
+export default function AccountView({ account, transactions, categories = [] }) {
   // Default is OFF so the main transaction list is front and center
   const [showGraph, setShowGraph] = useState(false);
 
@@ -83,7 +83,11 @@ export default function AccountView({ account, transactions }) {
 
       {/* Main Activity / Transaction List */}
       <div>
-        <TransactionTable transactions={transactions} />
+        <TransactionTable
+          transactions={transactions}
+          categories={categories}
+          accountName={account.name}
+        />
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import {auth} from "@clerk/nextjs/server";
 import {checkUser} from "@/lib/checkUser";
 import {db, runDbTransaction} from "@/lib/prisma";
+import {defaultCategories} from "@/data/categories";
 import {revalidatePath} from "next/cache";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import aj from "@/lib/arcjet";
@@ -202,20 +203,48 @@ export async function getUserTransactions(query = {}) {
             throw new Error("User not found");
         }
 
-        const transactions = await db.transaction.findMany({
-            where: {
-                userId: user.id,
-                ...query
-            },
-            include: {
-                account: true
-            },
-            orderBy: {
-                date: "desc"
-            }
+        const [transactions, customCategories] = await Promise.all([
+            db.transaction.findMany({
+                where: {
+                    userId: user.id,
+                    ...query
+                },
+                include: {
+                    account: true
+                },
+                orderBy: {
+                    date: "desc"
+                }
+            }),
+            db.category.findMany({
+                where: { userId: user.id },
+            }),
+        ]);
+
+        const catMap = new Map();
+        defaultCategories.forEach((c) => {
+            catMap.set(c.id, { name: c.name, color: c.color, icon: c.icon });
+        });
+        customCategories.forEach((c) => {
+            catMap.set(c.id, {
+                name: c.name,
+                color: c.color || "#6366f1",
+                icon: c.icon || "Tag",
+            });
         });
 
-        return {success: true, data: transactions.map(serializeAmount)};
+        const enriched = transactions.map((t) => {
+            const serialized = serializeAmount(t);
+            const catInfo = catMap.get(t.category);
+            return {
+                ...serialized,
+                categoryName: catInfo ? catInfo.name : (t.category ? t.category.replace(/-/g, " ") : ""),
+                categoryColor: catInfo ? catInfo.color : "#6366f1",
+                categoryIcon: catInfo ? catInfo.icon : "Tag",
+            };
+        });
+
+        return {success: true, data: enriched};
     } catch (error) {
         throw new Error(error.message);
     }

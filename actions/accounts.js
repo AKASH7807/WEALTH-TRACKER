@@ -2,6 +2,7 @@
 
 import { db, runDbTransaction } from "@/lib/prisma";
 import { checkUser } from "@/lib/checkUser";
+import { defaultCategories } from "@/data/categories";
 import { revalidatePath } from "next/cache";
 
 // Helper to serialize Decimal / Float fields safely to numbers
@@ -88,19 +89,67 @@ export async function getAccountWithTransaction(accountId) {
     const user = await checkUser();
     if (!user) throw new Error("User not found");
 
-    const account = await db.account.findUnique({
-      where: { id: accountId, userId: user.id },
-      include: {
-        transactions: { orderBy: { date: "desc" } },
-        _count: { select: { transactions: true } },
-      },
-    });
+    const [account, customCategories] = await Promise.all([
+      db.account.findUnique({
+        where: { id: accountId, userId: user.id },
+        include: {
+          transactions: { orderBy: { date: "desc" } },
+          _count: { select: { transactions: true } },
+        },
+      }),
+      db.category.findMany({
+        where: { userId: user.id },
+      }),
+    ]);
 
     if (!account) return null;
 
+    // Create a fast lookup map for categories
+    const catMap = new Map();
+    defaultCategories.forEach((c) => {
+      catMap.set(c.id, { name: c.name, color: c.color, icon: c.icon, isCustom: false });
+    });
+    customCategories.forEach((c) => {
+      catMap.set(c.id, {
+        name: c.name,
+        color: c.color || "#6366f1",
+        icon: c.icon || "Tag",
+        isCustom: true,
+      });
+    });
+
+    const enrichedTransactions = account.transactions.map((t) => {
+      const serialized = serializeTransaction(t);
+      const catInfo = catMap.get(t.category);
+      return {
+        ...serialized,
+        categoryName: catInfo ? catInfo.name : (t.category ? t.category.replace(/-/g, " ") : ""),
+        categoryColor: catInfo ? catInfo.color : "#6366f1",
+        categoryIcon: catInfo ? catInfo.icon : "Tag",
+      };
+    });
+
+    const hiddenCategories = Array.isArray(user.hiddenCategories)
+      ? user.hiddenCategories
+      : [];
+    const allCategories = [
+      ...customCategories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        color: c.color || "#6366f1",
+        icon: c.icon || "Tag",
+        isCustom: true,
+      })),
+      ...defaultCategories
+        .filter((c) => !hiddenCategories.includes(c.id))
+        .map((c) => ({ ...c, isCustom: false })),
+    ];
+
     return {
       ...serializeTransaction(account),
-      transactions: account.transactions.map(serializeTransaction),
+      transactions: enrichedTransactions,
+      categories: allCategories,
     };
   } catch (error) {
     throw error;

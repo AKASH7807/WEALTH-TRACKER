@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { checkUser } from "@/lib/checkUser";
+import { defaultCategories } from "@/data/categories";
 import { generateMonthlyReportPdf } from "@/lib/pdf-report";
 import { sendEmail } from "@/actions/send-email";
 import EmailTemplate from "@/emails/template";
@@ -87,27 +88,46 @@ async function generateFinancialInsights(stats, monthLabel) {
  * Fetches transactions and computes key aggregates for a user and date range.
  */
 async function getMonthlyStatsAndTransactions(userId, startDate, endDate) {
-  const transactions = await db.transaction.findMany({
-    where: {
-      userId,
-      date: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    include: {
-      account: {
-        select: {
-          name: true,
+  const [transactions, customCategories] = await Promise.all([
+    db.transaction.findMany({
+      where: {
+        userId,
+        date: {
+          gte: startDate,
+          lte: endDate,
         },
       },
-    },
-    orderBy: {
-      date: "desc",
-    },
+      include: {
+        account: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        date: "desc",
+      },
+    }),
+    db.category.findMany({
+      where: { userId },
+    }),
+  ]);
+
+  const catMap = new Map();
+  defaultCategories.forEach((c) => catMap.set(c.id, c.name));
+  customCategories.forEach((c) => catMap.set(c.id, c.name));
+
+  const enrichedTransactions = transactions.map((t) => {
+    const displayName =
+      catMap.get(t.category) || (t.category ? t.category.replace(/-/g, " ") : "General");
+    return {
+      ...t,
+      category: displayName,
+      categoryName: displayName,
+    };
   });
 
-  const stats = transactions.reduce(
+  const stats = enrichedTransactions.reduce(
     (acc, t) => {
       const amount =
         typeof t.amount === "number"
@@ -127,11 +147,11 @@ async function getMonthlyStatsAndTransactions(userId, startDate, endDate) {
       totalExpenses: 0,
       totalIncome: 0,
       byCategory: {},
-      transactionCount: transactions.length,
+      transactionCount: enrichedTransactions.length,
     }
   );
 
-  return { stats, transactions };
+  return { stats, transactions: enrichedTransactions };
 }
 
 /**

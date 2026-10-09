@@ -13,6 +13,7 @@ const AccountPage = async ({params}) => {
 
     const {
         transactions,
+        categories = [],
         ...account
     } = accountData;
 
@@ -20,7 +21,7 @@ const AccountPage = async ({params}) => {
         <Suspense fallback={
             <BarLoader className="mt-4" width={"100%"} color="#9333ea"/>
         }>
-            <AccountView account={account} transactions={transactions} />
+            <AccountView account={account} transactions={transactions} categories={categories} />
         </Suspense>
     );
 };
